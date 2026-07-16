@@ -20,6 +20,13 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
   const sessionEndedRef = useRef(false);
   const historyRef = useRef([]);  // [{role, content}] mirror of messages for API calls
 
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, []);
+
   // Show a non-blocking toast notification
   const showToast = useCallback((text, type = 'info', durationMs = 4000) => {
     setToast({ text, type });
@@ -56,19 +63,22 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
       setPrepTimeLeft((prevPrep) => (prevPrep > 0 ? prevPrep - 1 : 0));
       setAppState((currentState) => {
         if (currentState === 'idle') {
-          setTimeLeft((prev) => {
-            if (prev <= 1) {
-              clearInterval(timerRef.current);
-              endSession();
-              return 0;
-            }
-            return prev - 1;
-          });
+          setTimeLeft((prev) => (prev > 0 ? prev - 1 : 0));
         }
         return currentState; // don't change appState
       });
     }, 1000);
   }, [endSession]);
+
+  // Handle time out
+  useEffect(() => {
+    if (timeLeft === 0 && appState === 'idle') {
+      if (timerRef.current) clearInterval(timerRef.current);
+      setAppState('finished');
+      setPrepTimeLeft(0);
+      showToast("Time's up! Review your chat, then click End to see your summary.", 'info', 6000);
+    }
+  }, [timeLeft, appState, showToast]);
 
   // Initialize: fetch opening message (text only)
   useEffect(() => {

@@ -5,7 +5,7 @@ import ChatBubble from './ChatBubble.jsx';
 import MicButton from './MicButton.jsx';
 import SessionTimer from './SessionTimer.jsx';
 
-export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
+export default function ChatScreen({ topic, durationSecs, onSessionEnd, onExit }) {
   const { isRecording, micError, startRecording, stopRecording } = useAudioRecorder();
   const chatBottomRef = useRef(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -132,7 +132,9 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
       <footer className="chat-footer">
         <div className="chat-footer-inner">
           <p className="chat-hint">
-            {effectiveState === 'processing' && !isRecording
+            {effectiveState === 'finished'
+              ? 'Time is up! Review your chat, then click End.'
+              : effectiveState === 'processing' && !isRecording
               ? isInitializing ? 'Alex is getting ready...' : 'Processing your speech...'
               : effectiveState === 'recording'
               ? 'Tap mic again when done speaking'
@@ -166,6 +168,9 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowEndConfirm(false)}>
                 Keep going
+              </button>
+              <button className="btn btn-secondary" onClick={onExit} style={{ color: '#ef4444' }}>
+                Exit
               </button>
               <button className="btn btn-danger" onClick={endSession}>
                 End & see results
@@ -337,6 +342,7 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
         .modal-box p  { color: var(--text-secondary); font-size: 0.9rem; }
         .modal-actions {
           display: flex;
+          flex-wrap: wrap;
           gap: 10px;
           justify-content: flex-end;
           margin-top: 4px;

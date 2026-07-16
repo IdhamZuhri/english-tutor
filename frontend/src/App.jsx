@@ -46,6 +46,7 @@ export default function App() {
           topic={sessionConfig.topic}
           durationSecs={sessionConfig.durationSecs}
           onSessionEnd={handleSessionEnd}
+          onExit={handleRestart}
         />
       )}
 
