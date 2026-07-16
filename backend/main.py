@@ -27,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Validate required env vars on startup
-REQUIRED_ENV_VARS = ["GEMINI_API_KEY"]
+REQUIRED_ENV_VARS = ["OPENAI_API_KEY"]
 
 
 @asynccontextmanager
