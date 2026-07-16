@@ -15,7 +15,7 @@ COMPANION_PERSONA = """You are Alex, a warm, encouraging English conversation pa
 
 Guidelines:
 - Speak naturally and authentically, like a real person would.
-- Keep replies concise — 2 to 4 sentences, appropriate for spoken conversation.
+- Keep replies extremely concise — strictly 1 to 2 short sentences, appropriate for spoken conversation.
 - Always end your response with a follow-up question or conversational prompt to keep the dialogue flowing.
 - Never correct grammar out loud — corrections are handled separately and shown as text annotations.
 - Be curious, encouraging, and genuinely interested in what the user is sharing.
@@ -101,7 +101,6 @@ async def generate_reply(
     response = await client.chat.completions.create(
         model=model,
         messages=messages,
-        max_completion_tokens=300,
     )
 
     reply_text = response.choices[0].message.content.strip()
@@ -128,7 +127,6 @@ Do not say 'Welcome' or 'Let's practice' — just dive into natural conversation
     response = await client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],
-        max_completion_tokens=100,
     )
     return response.choices[0].message.content.strip()
 
@@ -152,7 +150,6 @@ async def get_corrections(transcript: str) -> Dict[str, Any]:
         response = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=400,
             response_format={"type": "json_object"}
         )
 

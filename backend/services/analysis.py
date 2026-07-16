@@ -94,7 +94,6 @@ async def analyze_session(history: List[Dict]) -> Dict[str, Any]:
         response = await client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=800,
             response_format={"type": "json_object"}
         )
 
