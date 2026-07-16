@@ -138,8 +138,8 @@ export default function SummaryScreen({ history, topic, durationSecs, onRestart 
             {/* Radar Chart */}
             <div className="summary-chart-wrap glass-card animate-in">
               <h3 className="chart-title">Performance Overview</h3>
-              <ResponsiveContainer width="100%" height={280}>
-                <RadarChart data={radarData} margin={{ top: 10, right: 30, bottom: 10, left: 30 }}>
+              <ResponsiveContainer width="100%" height={300}>
+                <RadarChart data={radarData} margin={{ top: 20, right: 50, bottom: 20, left: 50 }}>
                   <PolarGrid
                     stroke="rgba(255,255,255,0.08)"
                     gridType="polygon"
@@ -285,7 +285,7 @@ export default function SummaryScreen({ history, topic, durationSecs, onRestart 
         /* Chart row */
         .summary-chart-row {
           display: grid;
-          grid-template-columns: 1fr auto;
+          grid-template-columns: 1.5fr 1fr;
           gap: 20px;
           align-items: start;
         }
