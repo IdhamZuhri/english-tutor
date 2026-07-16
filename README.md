@@ -56,55 +56,46 @@ OPENAI_API_KEY=sk-your-openai-key-here
 GEMINI_API_KEY=AIza-your-gemini-key-here
 ```
 
-### Step 3 — Set up the backend
+### Step 3 — The Practical Way (Windows only)
 
+If you are on Windows, we have provided a `start.bat` file to easily run the system.
+
+Simply double-click `start.bat` in the root folder, or run:
+```bash
+start.bat
+```
+This script will automatically:
+1. Start the backend in a new terminal window
+2. Start the frontend in a new terminal window
+3. Open your browser to http://localhost:5173
+
+> ⚠️ **Microphone permissions**: Your browser will ask for mic access the first time you press the record button. Click "Allow".
+
+### Step 3 (Alternative) — Manual Startup
+
+If you prefer to start them manually (or are not on Windows), follow these steps:
+
+#### Backend
 Open a terminal and run:
 
 ```bash
 cd backend
-
-# Create a virtual environment (recommended)
 python -m venv venv
 venv\Scripts\activate       # Windows PowerShell: .\venv\Scripts\Activate.ps1
-
-# Install dependencies
 pip install -r requirements.txt
-
-# Start the backend (stays running)
 uvicorn main:app --reload --port 8000
 ```
 
-You should see:
-```
-✅ SpeakWell backend started. All API keys found.
-INFO:     Uvicorn running on http://127.0.0.1:8000
-```
-
-### Step 4 — Set up the frontend
-
+#### Frontend
 Open a **second terminal** and run:
 
 ```bash
 cd frontend
-
-# Install dependencies (first time only)
 npm install
-
-# Start the dev server
 npm run dev
 ```
 
-You should see:
-```
-  VITE v5.x  ready in Xms
-  ➜  Local:   http://localhost:5173/
-```
-
-### Step 5 — Open the app
-
 Navigate to **http://localhost:5173** in your browser.
-
-> ⚠️ **Microphone permissions**: Your browser will ask for mic access the first time you press the record button. Click "Allow".
 
 ---
 

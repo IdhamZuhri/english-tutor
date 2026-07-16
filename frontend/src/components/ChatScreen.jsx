@@ -25,6 +25,16 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // ── BUG FIX: merge recording state from useAudioRecorder with session appState ──
+  // appState (from useSession) never reaches 'recording' — that's tracked by
+  // useAudioRecorder's isRecording. Without this merge, the mic button always
+  // sees 'idle' and every click fires onPress (start), never onRelease (stop).
+  const effectiveState = isInitializing
+    ? 'processing'
+    : isRecording
+    ? 'recording'
+    : appState;
+
   const handleMicPress = async () => {
     const success = await startRecording();
     if (!success) return;
@@ -32,15 +42,18 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
 
   const handleMicRelease = async () => {
     const blob = await stopRecording();
-    if (!blob || blob.size < 100) return;
+    if (!blob || blob.size < 100) {
+      // blob too small = silence; don't bother sending
+      return;
+    }
     await processTurn(blob);
   };
 
   const STATE_LABELS = {
-    idle:       '🎙️ Tap to speak',
-    recording:  '🔴 Recording... tap to stop',
-    processing: '⏳ Thinking...',
-    speaking:   '🔊 Alex is speaking',
+    idle:       'Tap mic to speak',
+    recording:  'Recording — tap again to stop',
+    processing: 'Thinking...',
+    speaking:   'Alex is speaking',
   };
 
   return (
@@ -56,9 +69,9 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
         </div>
 
         <div className="chat-header-right">
-          <div className={`status-badge ${isInitializing ? 'processing' : appState}`}>
+          <div className={`status-badge ${effectiveState}`}>
             <span className="status-dot" />
-            {isInitializing ? 'Connecting...' : STATE_LABELS[appState]}
+            {isInitializing ? 'Connecting...' : STATE_LABELS[effectiveState]}
           </div>
           <SessionTimer timeLeft={timeLeft} totalSecs={durationSecs} />
           <button
@@ -109,18 +122,16 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
       <footer className="chat-footer">
         <div className="chat-footer-inner">
           <p className="chat-hint">
-            {isInitializing
-              ? 'Waiting for Alex to open the conversation...'
-              : appState === 'idle'
-              ? 'Tap the mic and speak naturally'
-              : appState === 'recording'
-              ? 'Tap again when done speaking'
-              : appState === 'speaking'
-              ? 'Alex is speaking — mic disabled'
-              : 'Processing your speech...'}
+            {effectiveState === 'processing' && !isRecording
+              ? isInitializing ? 'Alex is getting ready...' : 'Processing your speech...'
+              : effectiveState === 'recording'
+              ? 'Tap mic again when done speaking'
+              : effectiveState === 'speaking'
+              ? 'Alex is speaking — mic will re-enable when done'
+              : 'Tap the mic and speak naturally'}
           </p>
           <MicButton
-            appState={isInitializing ? 'processing' : appState}
+            appState={effectiveState}
             onPress={handleMicPress}
             onRelease={handleMicRelease}
           />

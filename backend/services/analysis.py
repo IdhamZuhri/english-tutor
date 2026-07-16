@@ -9,6 +9,8 @@ import re
 from typing import List, Dict, Any
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,10 @@ Scoring guidelines:
 Be encouraging and constructive. Scores of 60-80 represent solid intermediate learners.
 Return ONLY valid JSON, no markdown, no extra text."""
 
+def _is_rate_limit(exception: BaseException) -> bool:
+    if isinstance(exception, APIError):
+        return exception.code == 429
+    return False
 
 _client: genai.Client | None = None
 
@@ -69,6 +75,12 @@ def _format_transcript(history: List[Dict]) -> str:
     return "\n".join(lines)
 
 
+@retry(
+    retry=retry_if_exception(_is_rate_limit),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(4),
+    reraise=True
+)
 async def analyze_session(history: List[Dict]) -> Dict[str, Any]:
     """
     Analyze a full session transcript and return structured performance scores.

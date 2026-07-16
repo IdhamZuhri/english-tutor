@@ -13,13 +13,12 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-load_dotenv()
+load_dotenv(override=True)
 
 from models import AnalyzeRequest
 from services.analysis import analyze_session
 from services.llm import generate_reply, get_corrections, get_opening_message
 from services.stt import transcribe_audio
-from services.tts import synthesize_speech
 
 logging.basicConfig(
     level=logging.INFO,
@@ -28,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Validate required env vars on startup
-REQUIRED_ENV_VARS = ["OPENAI_API_KEY", "GEMINI_API_KEY"]
+REQUIRED_ENV_VARS = ["GEMINI_API_KEY"]
 
 
 @asynccontextmanager
@@ -82,11 +81,10 @@ async def opening(topic: str = "Small Talk"):
     """Generate the companion's opening message for a session."""
     try:
         message = await get_opening_message(topic)
-        audio_b64 = await synthesize_speech(message)
         return {
             "reply_text": message,
-            "reply_audio_b64": audio_b64,
-            "tts_fallback": audio_b64 is None,
+            "reply_audio_b64": None,
+            "tts_fallback": False,
         }
     except Exception as e:
         logger.error(f"Opening message error: {e}")
@@ -113,8 +111,8 @@ async def chat(
         audio_bytes = await audio.read()
         content_type = audio.content_type or "audio/webm"
 
-        # Check for empty/silent audio
-        if len(audio_bytes) < 500:
+        # Check for empty/silent audio — WebM containers are always a few KB even when silent
+        if len(audio_bytes) < 8000:
             return JSONResponse(
                 {
                     "error": "silent",
@@ -132,7 +130,8 @@ async def chat(
                 detail=f"Transcription service error: {str(e)}",
             )
 
-        if not transcript or len(transcript.strip()) < 2:
+        # Reject empty transcripts or suspiciously short ones (likely hallucinated silence)
+        if not transcript or transcript.strip() == "[EMPTY]" or len(transcript.strip().split()) < 2:
             return JSONResponse(
                 {
                     "error": "empty",
@@ -155,19 +154,15 @@ async def chat(
                 detail=f"Language model error: {str(e)}",
             )
 
-        # Step 4: Synthesize TTS (non-blocking — None = use browser fallback)
-        try:
-            audio_b64 = await synthesize_speech(reply_result["reply_text"])
-        except Exception as e:
-            logger.warning(f"TTS failed, using browser fallback: {e}")
-            audio_b64 = None
+        # TTS disabled — text-only mode
+        audio_b64 = None
 
         return {
             "transcript": transcript,
             "corrections": corrections,
             "reply_text": reply_result["reply_text"],
-            "reply_audio_b64": audio_b64,
-            "tts_fallback": audio_b64 is None,
+            "reply_audio_b64": None,
+            "tts_fallback": False,
         }
 
     except HTTPException:
@@ -198,3 +193,4 @@ async def analyze(request: AnalyzeRequest):
     except Exception as e:
         logger.exception(f"Unexpected error in /api/analyze: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+

@@ -1,0 +1,9 @@
+{
+  "name": "speakwell",
+  "version": "1.0.0",
+  "description": "SpeakWell AI English Speaking Companion — run scripts",
+  "scripts": {
+    "backend": "cd backend && .\\venv\\Scripts\\uvicorn.exe main:app --reload --port 8000",
+    "frontend": "cd frontend && npm run dev"
+  }
+}

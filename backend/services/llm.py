@@ -8,6 +8,8 @@ import logging
 from typing import List, Dict, Any
 from google import genai
 from google.genai import types
+from google.genai.errors import APIError
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +45,11 @@ Rules:
 - Keep explanations short (max 8 words) and friendly
 - Return ONLY valid JSON, no markdown fences"""
 
+def _is_rate_limit(exception: BaseException) -> bool:
+    if isinstance(exception, APIError):
+        return exception.code == 429
+    return False
+
 _client: genai.Client | None = None
 
 
@@ -74,6 +81,12 @@ def _build_contents(history: List[Dict], new_message: str) -> List[types.Content
     return contents
 
 
+@retry(
+    retry=retry_if_exception(_is_rate_limit),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(4),
+    reraise=True
+)
 async def generate_reply(
     transcript: str,
     history: List[Dict],
@@ -118,6 +131,12 @@ async def generate_reply(
     return {"reply_text": reply_text}
 
 
+@retry(
+    retry=retry_if_exception(_is_rate_limit),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(4),
+    reraise=True
+)
 async def get_opening_message(topic: str) -> str:
     """Generate the companion's opening line for a new session."""
     client = _get_client()
@@ -140,6 +159,12 @@ Do not say 'Welcome' or 'Let\'s practice' — just dive into natural conversatio
     return response.text.strip()
 
 
+@retry(
+    retry=retry_if_exception(_is_rate_limit),
+    wait=wait_exponential(multiplier=1, min=2, max=10),
+    stop=stop_after_attempt(4),
+    reraise=True
+)
 async def get_corrections(transcript: str) -> Dict[str, Any]:
     """
     Silently analyze a transcript for grammar/structure corrections.

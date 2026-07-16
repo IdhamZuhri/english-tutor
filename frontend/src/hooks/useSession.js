@@ -1,12 +1,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { sendChatTurn, fetchOpeningMessage, decodeAudioB64 } from '../services/api.js';
+import { sendChatTurn, fetchOpeningMessage } from '../services/api.js';
 
 /**
  * Session state machine states:
  *   'idle'       — ready to record
  *   'recording'  — mic is capturing audio
  *   'processing' — waiting for API response
- *   'speaking'   — playing companion audio
  */
 
 export function useSession({ topic, durationSecs, onSessionEnd }) {
@@ -16,7 +15,6 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
   const [toast, setToast] = useState(null);       // { text, type }
   const [isInitializing, setIsInitializing] = useState(true);
 
-  const audioRef = useRef(null);
   const timerRef = useRef(null);
   const sessionEndedRef = useRef(false);
   const historyRef = useRef([]);  // [{role, content}] mirror of messages for API calls
@@ -40,108 +38,37 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
     return id;
   }, []);
 
-  // Play base64 WAV audio; on end → set state to idle
-  const playAudio = useCallback((b64wav, onEnd) => {
-    // Stop any currently playing audio
-    if (audioRef.current) {
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-
-    const url = decodeAudioB64(b64wav);
-    const audio = new Audio(url);
-    audioRef.current = audio;
-
-    audio.onended = () => {
-      URL.revokeObjectURL(url);
-      audioRef.current = null;
-      if (onEnd) onEnd();
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      audioRef.current = null;
-      if (onEnd) onEnd();
-    };
-
-    setAppState('speaking');
-    audio.play().catch((err) => {
-      console.warn('Audio playback failed:', err);
-      if (onEnd) onEnd();
-    });
-  }, []);
-
-  // Browser TTS fallback
-  const speakWithBrowser = useCallback((text, onEnd) => {
-    if (!window.speechSynthesis) {
-      if (onEnd) onEnd();
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.92;
-    utterance.pitch = 1.0;
-    utterance.volume = 1.0;
-    // Prefer a natural English voice
-    const voices = window.speechSynthesis.getVoices();
-    const preferred = voices.find(
-      (v) =>
-        v.lang.startsWith('en') &&
-        (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Neural'))
-    );
-    if (preferred) utterance.voice = preferred;
-    utterance.onend = () => { if (onEnd) onEnd(); };
-    utterance.onerror = () => { if (onEnd) onEnd(); };
-    setAppState('speaking');
-    window.speechSynthesis.speak(utterance);
-  }, []);
-
-  // Deliver a companion message (text + audio)
-  const deliverCompanionMessage = useCallback(
-    (replyText, replyAudioB64, ttsfall) => {
-      addMessage('assistant', replyText);
-
-      const afterAudio = () => {
-        if (!sessionEndedRef.current) setAppState('idle');
-      };
-
-      if (replyAudioB64) {
-        playAudio(replyAudioB64, afterAudio);
-      } else if (ttsfall) {
-        speakWithBrowser(replyText, afterAudio);
-      } else {
-        afterAudio();
-      }
-    },
-    [addMessage, playAudio, speakWithBrowser]
-  );
-
   // End the session
   const endSession = useCallback(() => {
     if (sessionEndedRef.current) return;
     sessionEndedRef.current = true;
 
     if (timerRef.current) clearInterval(timerRef.current);
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
-    if (window.speechSynthesis) window.speechSynthesis.cancel();
 
     onSessionEnd(historyRef.current);
   }, [onSessionEnd]);
 
-  // Start the session countdown timer
+  // Start the session countdown timer — pauses while recording or processing
   const startTimer = useCallback(() => {
     timerRef.current = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current);
-          endSession();
-          return 0;
+      // Only count down when user is idle (not recording or waiting for API)
+      setAppState((currentState) => {
+        if (currentState === 'idle') {
+          setTimeLeft((prev) => {
+            if (prev <= 1) {
+              clearInterval(timerRef.current);
+              endSession();
+              return 0;
+            }
+            return prev - 1;
+          });
         }
-        return prev - 1;
+        return currentState; // don't change appState
       });
     }, 1000);
   }, [endSession]);
 
-  // Initialize: fetch opening message
+  // Initialize: fetch opening message (text only)
   useEffect(() => {
     let cancelled = false;
 
@@ -153,16 +80,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
 
         addMessage('assistant', data.reply_text);
         startTimer();
-
-        if (data.reply_audio_b64) {
-          playAudio(data.reply_audio_b64, () => {
-            if (!cancelled) setAppState('idle');
-          });
-        } else {
-          speakWithBrowser(data.reply_text, () => {
-            if (!cancelled) setAppState('idle');
-          });
-        }
+        setAppState('idle');
       } catch (err) {
         if (cancelled) return;
         console.error('Opening message error:', err);
@@ -179,7 +97,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
     return () => { cancelled = true; };
   }, []); // run once on mount
 
-  // Process a turn: audioBlob → API → reply + audio
+  // Process a turn: audioBlob → API → reply text
   const processTurn = useCallback(
     async (audioBlob) => {
       if (sessionEndedRef.current) return;
@@ -210,12 +128,14 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
           { role: 'user', content: data.transcript },
         ];
 
-        // Deliver companion reply
-        deliverCompanionMessage(data.reply_text, data.reply_audio_b64, data.tts_fallback);
+        // Add companion reply (text only)
+        addMessage('assistant', data.reply_text);
         historyRef.current = [
           ...historyRef.current,
           { role: 'assistant', content: data.reply_text },
         ];
+
+        setAppState('idle');
 
       } catch (err) {
         console.error('Chat turn error:', err);
@@ -223,7 +143,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
         setAppState('idle');
       }
     },
-    [topic, deliverCompanionMessage, showToast]
+    [topic, addMessage, showToast]
   );
 
   return {
