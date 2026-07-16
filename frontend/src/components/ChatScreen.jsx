@@ -14,6 +14,7 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
     appState,
     messages,
     timeLeft,
+    prepTimeLeft,
     toast,
     isInitializing,
     processTurn,
@@ -24,6 +25,15 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Auto-start recording when prep time expires
+  const prevPrepRef = useRef(0);
+  useEffect(() => {
+    if (prevPrepRef.current === 1 && prepTimeLeft === 0 && appState === 'idle') {
+      startRecording();
+    }
+    prevPrepRef.current = prepTimeLeft;
+  }, [prepTimeLeft, appState, startRecording]);
 
   // ── BUG FIX: merge recording state from useAudioRecorder with session appState ──
   // appState (from useSession) never reaches 'recording' — that's tracked by
@@ -128,6 +138,8 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd }) {
               ? 'Tap mic again when done speaking'
               : effectiveState === 'speaking'
               ? 'Alex is speaking — mic will re-enable when done'
+              : prepTimeLeft > 0
+              ? `Preparation time: 00:${prepTimeLeft.toString().padStart(2, '0')} (Tap mic to skip)`
               : 'Tap the mic and speak naturally'}
           </p>
           <MicButton

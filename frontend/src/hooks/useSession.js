@@ -14,6 +14,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
   const [timeLeft, setTimeLeft] = useState(durationSecs);
   const [toast, setToast] = useState(null);       // { text, type }
   const [isInitializing, setIsInitializing] = useState(true);
+  const [prepTimeLeft, setPrepTimeLeft] = useState(0);
 
   const timerRef = useRef(null);
   const sessionEndedRef = useRef(false);
@@ -52,6 +53,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
   const startTimer = useCallback(() => {
     timerRef.current = setInterval(() => {
       // Only count down when user is idle (not recording or waiting for API)
+      setPrepTimeLeft((prevPrep) => (prevPrep > 0 ? prevPrep - 1 : 0));
       setAppState((currentState) => {
         if (currentState === 'idle') {
           setTimeLeft((prev) => {
@@ -79,6 +81,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
         if (cancelled) return;
 
         addMessage('assistant', data.reply_text);
+        setPrepTimeLeft(20);
         startTimer();
         setAppState('idle');
       } catch (err) {
@@ -86,6 +89,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
         console.error('Opening message error:', err);
         showToast('Could not reach the backend. Is it running?', 'error');
         addMessage('assistant', `Hey! I'm Alex — let's talk about ${topic}. What's on your mind?`);
+        setPrepTimeLeft(20);
         startTimer();
         setAppState('idle');
       } finally {
@@ -135,6 +139,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
           { role: 'assistant', content: data.reply_text },
         ];
 
+        setPrepTimeLeft(20);
         setAppState('idle');
 
       } catch (err) {
@@ -150,6 +155,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
     appState,
     messages,
     timeLeft,
+    prepTimeLeft,
     toast,
     isInitializing,
     processTurn,
