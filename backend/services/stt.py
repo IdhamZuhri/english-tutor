@@ -24,7 +24,7 @@ def _is_rate_limit(exception: BaseException) -> bool:
 def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        api_key = os.environ.get("OPENAI_API_KEY")
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
         if not api_key or api_key == "your_openai_api_key_here":
             raise RuntimeError("OPENAI_API_KEY environment variable not set or invalid.")
         _client = AsyncOpenAI(api_key=api_key)

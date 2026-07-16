@@ -1,15 +1,12 @@
 """
-Session analysis service using Google Gemini API.
+Session analysis service using OpenAI API.
 Analyzes a full conversation transcript and returns structured performance scores.
 """
 import os
 import json
 import logging
-import re
 from typing import List, Dict, Any
-from google import genai
-from google.genai import types
-from google.genai.errors import APIError
+from openai import AsyncOpenAI, RateLimitError
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
@@ -46,25 +43,21 @@ Scoring guidelines:
 - filler_count: Exact count of filler words/phrases in user messages only
 
 Be encouraging and constructive. Scores of 60-80 represent solid intermediate learners.
-Return ONLY valid JSON, no markdown, no extra text."""
+Return ONLY valid JSON."""
 
 def _is_rate_limit(exception: BaseException) -> bool:
-    if isinstance(exception, APIError):
-        return exception.code == 429
-    return False
+    return isinstance(exception, RateLimitError)
 
-_client: genai.Client | None = None
+_client: AsyncOpenAI | None = None
 
-
-def _get_client() -> genai.Client:
+def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY environment variable not set.")
-        _client = genai.Client(api_key=api_key)
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+        if not api_key or api_key == "your_openai_api_key_here":
+            raise RuntimeError("OPENAI_API_KEY environment variable not set or invalid.")
+        _client = AsyncOpenAI(api_key=api_key)
     return _client
-
 
 def _format_transcript(history: List[Dict]) -> str:
     """Format conversation history as a readable transcript."""
@@ -73,7 +66,6 @@ def _format_transcript(history: List[Dict]) -> str:
         role = "User" if msg["role"] == "user" else "Alex"
         lines.append(f"{role}: {msg['content']}")
     return "\n".join(lines)
-
 
 @retry(
     retry=retry_if_exception(_is_rate_limit),
@@ -84,15 +76,9 @@ def _format_transcript(history: List[Dict]) -> str:
 async def analyze_session(history: List[Dict]) -> Dict[str, Any]:
     """
     Analyze a full session transcript and return structured performance scores.
-
-    Args:
-        history: List of {role, content} message dicts.
-
-    Returns:
-        Dict with summary, scores, filler_count, and justifications.
     """
     client = _get_client()
-    model = os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
     # Filter to only user messages for analysis
     user_messages = [m for m in history if m["role"] == "user"]
@@ -105,29 +91,14 @@ async def analyze_session(history: List[Dict]) -> Dict[str, Any]:
     logger.info(f"Analyzing session with {len(user_messages)} user turns")
 
     try:
-        response = await client.aio.models.generate_content(
+        response = await client.chat.completions.create(
             model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.2,
-                max_output_tokens=800,
-            ),
+            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=800,
+            response_format={"type": "json_object"}
         )
 
-        raw = response.text.strip()
-
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
-        # Extract JSON object with regex as final fallback
-        json_match = re.search(r'\{[\s\S]*\}', raw)
-        if json_match:
-            raw = json_match.group(0)
-
+        raw = response.choices[0].message.content.strip()
         result = json.loads(raw)
 
         # Validate and clamp scores to 0-100
@@ -142,7 +113,6 @@ async def analyze_session(history: List[Dict]) -> Dict[str, Any]:
     except Exception as e:
         logger.error(f"Session analysis failed: {e}")
         return _empty_analysis(error=str(e))
-
 
 def _empty_analysis(error: str | None = None) -> Dict[str, Any]:
     """Return a safe fallback when analysis fails."""

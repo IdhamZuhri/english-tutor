@@ -1,14 +1,12 @@
 """
-LLM service using Google Gemini API.
+LLM service using OpenAI API.
 Handles conversational replies and grammar correction extraction.
 """
 import os
 import json
 import logging
 from typing import List, Dict, Any
-from google import genai
-from google.genai import types
-from google.genai.errors import APIError
+from openai import AsyncOpenAI, RateLimitError
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 logger = logging.getLogger(__name__)
@@ -43,43 +41,35 @@ Rules:
 - Do NOT correct informal style, natural pauses, or personal word choice preferences
 - If the sentence is already correct, set has_corrections to false and corrections to []
 - Keep explanations short (max 8 words) and friendly
-- Return ONLY valid JSON, no markdown fences"""
+- Return ONLY valid JSON."""
 
 def _is_rate_limit(exception: BaseException) -> bool:
-    if isinstance(exception, APIError):
-        return exception.code == 429
-    return False
+    return isinstance(exception, RateLimitError)
 
-_client: genai.Client | None = None
+_client: AsyncOpenAI | None = None
 
-
-def _get_client() -> genai.Client:
+def _get_client() -> AsyncOpenAI:
     global _client
     if _client is None:
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            raise RuntimeError("GEMINI_API_KEY environment variable not set.")
-        _client = genai.Client(api_key=api_key)
+        api_key = os.environ.get("OPENAI_API_KEY", "").strip()
+        if not api_key or api_key == "your_openai_api_key_here":
+            raise RuntimeError("OPENAI_API_KEY environment variable not set or invalid.")
+        _client = AsyncOpenAI(api_key=api_key)
     return _client
 
-
 def _get_model() -> str:
-    return os.environ.get("GEMINI_MODEL", "gemini-2.0-flash")
+    return os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
-
-def _build_contents(history: List[Dict], new_message: str) -> List[types.Content]:
-    """Convert chat history to Gemini content format."""
-    contents = []
+def _build_messages(history: List[Dict], new_message: str, system_prompt: str) -> List[Dict[str, str]]:
+    """Convert chat history to OpenAI message format."""
+    messages = [{"role": "system", "content": system_prompt}]
     for msg in history:
-        role = "user" if msg["role"] == "user" else "model"
-        contents.append(
-            types.Content(role=role, parts=[types.Part(text=msg["content"])])
-        )
-    contents.append(
-        types.Content(role="user", parts=[types.Part(text=new_message)])
-    )
-    return contents
-
+        # Map roles if needed, though they should already be 'user' or 'assistant'
+        role = "user" if msg["role"] == "user" else "assistant"
+        messages.append({"role": role, "content": msg["content"]})
+    
+    messages.append({"role": "user", "content": new_message})
+    return messages
 
 @retry(
     retry=retry_if_exception(_is_rate_limit),
@@ -94,14 +84,6 @@ async def generate_reply(
 ) -> Dict[str, str]:
     """
     Generate a conversational reply from the AI companion.
-
-    Args:
-        transcript: The user's latest transcribed speech.
-        history: Previous conversation history [{role, content}].
-        topic: The session topic (e.g. "Travel").
-
-    Returns:
-        Dict with 'reply_text' key.
     """
     client = _get_client()
     model = _get_model()
@@ -110,26 +92,21 @@ async def generate_reply(
 
     # Build opening context if this is the first message
     if not history:
-        system_prompt += f"\n\nOpen the conversation naturally with a warm greeting and an engaging question about {topic}. The user has just started a practice session."
+        system_prompt += "\n\nOpen the conversation naturally with a warm greeting and an engaging question. The user has just started a practice session."
 
-    contents = _build_contents(history, transcript)
+    messages = _build_messages(history, transcript, system_prompt)
 
     logger.info(f"Generating reply for topic={topic!r}, history_len={len(history)}")
 
-    response = await client.aio.models.generate_content(
+    response = await client.chat.completions.create(
         model=model,
-        contents=contents,
-        config=types.GenerateContentConfig(
-            system_instruction=system_prompt,
-            temperature=0.85,
-            max_output_tokens=300,
-        ),
+        messages=messages,
+        max_completion_tokens=300,
     )
 
-    reply_text = response.text.strip()
+    reply_text = response.choices[0].message.content.strip()
     logger.info(f"Reply: {reply_text!r}")
     return {"reply_text": reply_text}
-
 
 @retry(
     retry=retry_if_exception(_is_rate_limit),
@@ -146,18 +123,14 @@ async def get_opening_message(topic: str) -> str:
 Start a new practice conversation naturally about: {topic}
 Write ONE opening greeting + ONE engaging question. Keep it to 2 sentences maximum.
 Sound genuinely curious and friendly, not like a formal tutor.
-Do not say 'Welcome' or 'Let\'s practice' — just dive into natural conversation."""
+Do not say 'Welcome' or 'Let's practice' — just dive into natural conversation."""
 
-    response = await client.aio.models.generate_content(
+    response = await client.chat.completions.create(
         model=model,
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            temperature=0.9,
-            max_output_tokens=100,
-        ),
+        messages=[{"role": "user", "content": prompt}],
+        max_completion_tokens=100,
     )
-    return response.text.strip()
-
+    return response.choices[0].message.content.strip()
 
 @retry(
     retry=retry_if_exception(_is_rate_limit),
@@ -168,43 +141,27 @@ Do not say 'Welcome' or 'Let\'s practice' — just dive into natural conversatio
 async def get_corrections(transcript: str) -> Dict[str, Any]:
     """
     Silently analyze a transcript for grammar/structure corrections.
-
-    Args:
-        transcript: The user's transcribed sentence.
-
-    Returns:
-        Dict with has_corrections, corrected_sentence, and corrections list.
     """
     client = _get_client()
     model = _get_model()
 
     prompt = CORRECTION_PROMPT.format(sentence=transcript)
-
     logger.info(f"Getting corrections for: {transcript!r}")
 
     try:
-        response = await client.aio.models.generate_content(
+        response = await client.chat.completions.create(
             model=model,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.1,
-                max_output_tokens=400,
-            ),
+            messages=[{"role": "user", "content": prompt}],
+            max_completion_tokens=400,
+            response_format={"type": "json_object"}
         )
 
-        raw = response.text.strip()
-        # Strip markdown fences if present
-        if raw.startswith("```"):
-            raw = raw.split("```")[1]
-            if raw.startswith("json"):
-                raw = raw[4:]
-        raw = raw.strip()
-
+        raw = response.choices[0].message.content.strip()
         result = json.loads(raw)
         logger.info(f"Corrections: {result}")
         return result
 
-    except (json.JSONDecodeError, Exception) as e:
+    except Exception as e:
         logger.warning(f"Correction parsing failed: {e}")
         return {
             "has_corrections": False,
