@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { fetchPastSessions } from '../services/api.js';
+import { useState } from 'react';
 
 const TOPICS = [
   { id: 'travel',       label: 'Travel',           emoji: '✈️',  desc: 'Trips, destinations, adventures' },
@@ -12,16 +11,11 @@ const TOPICS = [
   { id: 'business',     label: 'Business English',  emoji: '📊',  desc: 'Meetings, presentations, networking' },
 ];
 
-export default function SetupScreen({ onStart, onViewHistory }) {
+export default function SetupScreen({ onStart }) {
   const [selectedTopic, setSelectedTopic]   = useState(null);
   const [customTopic, setCustomTopic]       = useState('');
   const [duration, setDuration]             = useState(5);
   const [useCustom, setUseCustom]           = useState(false);
-  const [sessions, setSessions]             = useState([]);
-
-  useEffect(() => {
-    fetchPastSessions().then(setSessions).catch(console.error);
-  }, []);
 
   const activeTopic = useCustom
     ? (customTopic.trim() || null)
@@ -125,37 +119,6 @@ export default function SetupScreen({ onStart, onViewHistory }) {
             ))}
           </div>
         </div>
-      </section>
-
-      {/* Recent Sessions */}
-      <section className="setup-section animate-in">
-        <div className="setup-section-header">
-          <h3>Recent Sessions</h3>
-        </div>
-        {sessions.length > 0 ? (
-          <div className="recent-sessions-grid">
-            {sessions.map(s => (
-              <div 
-                key={s.id} 
-                className="recent-session-card glass-card glass-card-hover"
-                onClick={() => onViewHistory(s.id)}
-              >
-                <div className="recent-topic">{s.topic}</div>
-                <div className="recent-date">{new Date(s.created_at).toLocaleDateString()}</div>
-                <div className="recent-scores">
-                  <span title="Grammar">📝 {s.grammar_score || '-'}</span>
-                  <span title="Fluency">🗣️ {s.fluency_score || '-'}</span>
-                  <span title="Vocabulary">📚 {s.vocabulary_score || '-'}</span>
-                  <span title="Pronunciation">🎵 {s.pronunciation_score || '-'}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-sessions glass-card">
-            <p>No past sessions yet. Start a conversation to see your history here!</p>
-          </div>
-        )}
       </section>
 
       {/* Start Button */}
@@ -348,38 +311,10 @@ export default function SetupScreen({ onStart, onViewHistory }) {
           color: var(--accent-light) !important;
         }
 
-        /* Recent Sessions */
-        .recent-sessions-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-          gap: 12px;
-        }
-        .recent-session-card {
-          padding: 16px;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-        .recent-topic {
-          font-weight: 600;
-          color: var(--text-primary);
-        }
-        .recent-date {
-          font-size: 0.75rem;
-          color: var(--text-muted);
-        }
-        .recent-scores {
-          display: flex;
-          gap: 8px;
-          font-size: 0.8125rem;
-          color: var(--text-secondary);
-        }
-        .empty-sessions {
-          padding: 24px;
-          text-align: center;
-          color: var(--text-muted);
-          font-size: 0.9375rem;
+        .tick-btn--active {
+          background: var(--accent-dim) !important;
+          border-color: var(--accent-border) !important;
+          color: var(--accent-light) !important;
         }
 
         /* CTA */

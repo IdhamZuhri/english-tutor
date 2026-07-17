@@ -2,6 +2,8 @@ import { useState } from 'react';
 import SetupScreen from './components/SetupScreen.jsx';
 import ChatScreen from './components/ChatScreen.jsx';
 import SummaryScreen from './components/SummaryScreen.jsx';
+import Sidebar from './components/Sidebar.jsx';
+import HistoryScreen from './components/HistoryScreen.jsx';
 
 /**
  * App — top-level screen router.
@@ -47,11 +49,26 @@ export default function App() {
     setScreen('setup');
   };
 
+  const handleTabChange = (tabId) => {
+    if (tabId === 'history') {
+      setScreen('history');
+    } else {
+      setScreen('setup');
+    }
+  };
+
   return (
-    <>
-      {screen === 'setup' && (
-        <SetupScreen onStart={handleStart} onViewHistory={handleViewHistory} />
-      )}
+    <div className="app-layout">
+      <Sidebar activeTab={screen} onTabChange={handleTabChange} />
+      
+      <main className="main-content">
+        {screen === 'setup' && (
+          <SetupScreen onStart={handleStart} />
+        )}
+
+        {screen === 'history' && (
+          <HistoryScreen onViewHistory={handleViewHistory} />
+        )}
 
       {screen === 'session' && (
         <ChatScreen
@@ -62,16 +79,17 @@ export default function App() {
         />
       )}
 
-      {screen === 'summary' && (
-        <SummaryScreen
-          history={history}
-          sessionId={sessionId}
-          isHistoryView={isHistoryView}
-          topic={sessionConfig.topic}
-          durationSecs={sessionConfig.durationSecs}
-          onRestart={handleRestart}
-        />
-      )}
-    </>
+        {screen === 'summary' && (
+          <SummaryScreen
+            history={history}
+            sessionId={sessionId}
+            isHistoryView={isHistoryView}
+            topic={sessionConfig.topic}
+            durationSecs={sessionConfig.durationSecs}
+            onRestart={handleRestart}
+          />
+        )}
+      </main>
+    </div>
   );
 }
