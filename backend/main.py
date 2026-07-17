@@ -216,7 +216,6 @@ async def get_sessions(db: AsyncSession = Depends(get_db)):
     try:
         result = await db.execute(
             select(Session)
-            .where(Session.summary.is_not(None))
             .order_by(desc(Session.created_at))
             .limit(10)
         )
