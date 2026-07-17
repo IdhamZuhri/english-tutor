@@ -11,11 +11,8 @@ logger = logging.getLogger(__name__)
 
 _client: AsyncOpenAI | None = None
 
-# Provide context rather than instructions, as instructions can cause Whisper to truncate audio
-STT_PROMPT = (
-    "This is a transcript of an English learning session between a student and a tutor. "
-    "The student is practicing their spoken English."
-)
+# A very short prompt with common conversational filler to set the tone without causing truncation
+STT_PROMPT = "Um, okay, let's start."
 
 def _is_rate_limit(exception: BaseException) -> bool:
     return isinstance(exception, RateLimitError)
@@ -87,6 +84,7 @@ async def transcribe_audio(audio_bytes: bytes, content_type: str = "audio/webm")
         model=model,
         file=(f"audio.{ext}", audio_bytes),
         prompt=STT_PROMPT,
+        language="en",
         temperature=0.0
     )
 
@@ -95,6 +93,15 @@ async def transcribe_audio(audio_bytes: bytes, content_type: str = "audio/webm")
     
     # Optional fallback if it still transcribes silence incorrectly (whisper hallucination)
     if not transcript:
+        return "[EMPTY]"
+        
+    # Whisper sometimes hallucinates the prompt or generic phrases on silent/noisy audio
+    lower_transcript = transcript.lower()
+    if "this is a transcript of an english learning session" in lower_transcript:
+        return "[EMPTY]"
+    if "the student is practicing their spoken english" in lower_transcript:
+        return "[EMPTY]"
+    if "thanks for watching" in lower_transcript or "thank you for watching" in lower_transcript:
         return "[EMPTY]"
         
     return transcript

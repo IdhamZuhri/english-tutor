@@ -17,18 +17,26 @@ export function useAudioRecorder() {
   const resolveRef = useRef(null);
 
   const startRecording = useCallback(async () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      console.warn('Already recording, ignoring startRecording call');
+      return true;
+    }
+
     setMicError(null);
 
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          sampleRate: 44100,
-        },
-      });
+      let stream = streamRef.current;
+      if (!stream || stream.active === false) {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            sampleRate: 44100,
+          },
+        });
+        streamRef.current = stream;
+      }
 
-      streamRef.current = stream;
       chunksRef.current = [];
 
       // Determine the best supported MIME type
@@ -49,9 +57,7 @@ export function useAudioRecorder() {
       };
 
       mediaRecorder.onstop = () => {
-        // Stop all mic tracks to release the mic indicator
-        stream.getTracks().forEach((track) => track.stop());
-
+        // DO NOT stop the stream tracks here! Keep the mic warm.
         const mimeUsed = mediaRecorder.mimeType || 'audio/webm';
         const blob = new Blob(chunksRef.current, { type: mimeUsed });
         chunksRef.current = [];
@@ -62,7 +68,7 @@ export function useAudioRecorder() {
         }
       };
 
-      mediaRecorder.start(100); // collect data every 100ms
+      mediaRecorder.start(500); // 500ms chunks is stable
       setIsRecording(true);
       return true;
 
@@ -86,16 +92,6 @@ export function useAudioRecorder() {
 
       resolveRef.current = resolve;
       setIsRecording(false);
-      
-      try {
-        // Force the recorder to emit the final chunk of data before stopping.
-        // This prevents Safari/some browsers from truncating the last few words.
-        if (mediaRecorderRef.current.state === 'recording') {
-          mediaRecorderRef.current.requestData();
-        }
-      } catch (e) {
-        console.warn('requestData failed', e);
-      }
       
       mediaRecorderRef.current.stop();
     });

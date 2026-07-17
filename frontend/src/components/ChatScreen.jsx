@@ -30,10 +30,12 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd, onExit }
   const prevPrepRef = useRef(0);
   useEffect(() => {
     if (prevPrepRef.current === 1 && prepTimeLeft === 0 && appState === 'idle') {
-      startRecording();
+      if (!isRecording) {
+        startRecording();
+      }
     }
     prevPrepRef.current = prepTimeLeft;
-  }, [prepTimeLeft, appState, startRecording]);
+  }, [prepTimeLeft, appState, startRecording, isRecording]);
 
   // ── BUG FIX: merge recording state from useAudioRecorder with session appState ──
   // appState (from useSession) never reaches 'recording' — that's tracked by
