@@ -8,6 +8,7 @@ import {
   Tooltip,
 } from 'recharts';
 import { analyzeSession, fetchSessionDetails } from '../services/api.js';
+import ChatBubble from './ChatBubble.jsx';
 
 const SCORE_META = {
   grammar:      { label: 'Grammar',            icon: '📝', color: '#8b5cf6' },
@@ -195,6 +196,20 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
               />
             ))}
           </div>
+
+          {/* Transcript / Conversation History */}
+          {((isHistoryView ? data.history : history) || []).length > 0 && (
+            <>
+              <h3 className="scores-heading" style={{ marginTop: '16px' }}>Conversation Transcript</h3>
+              <div className="summary-transcript glass-card animate-in">
+                <div className="summary-transcript-messages">
+                  {(isHistoryView ? data.history : history).map((msg, i) => (
+                    <ChatBubble key={i} message={msg} />
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
         </div>
       ) : null}
 
@@ -421,6 +436,15 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
           font-size: 0.8rem;
           color: var(--text-secondary);
           line-height: 1.5;
+        }
+
+        .summary-transcript {
+          padding: 24px;
+        }
+        .summary-transcript-messages {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
         }
       `}</style>
     </div>

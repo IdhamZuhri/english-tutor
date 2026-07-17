@@ -18,7 +18,8 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
 
   const timerRef = useRef(null);
   const sessionEndedRef = useRef(false);
-  const historyRef = useRef([]);  // [{role, content}] mirror of messages for API calls
+  const historyRef = useRef([]);  // [{role, content}] mirror for analyze API if needed
+  const messagesRef = useRef([]); // holds full messages with corrections
   const sessionIdRef = useRef(null);
 
   // Clean up timer on unmount
@@ -40,6 +41,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
     const msg = { id, role, content, ...extras };
 
     setMessages((prev) => [...prev, msg]);
+    messagesRef.current.push(msg);
     historyRef.current = [
       ...historyRef.current,
       { role: role === 'assistant' ? 'assistant' : 'user', content },
@@ -54,7 +56,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
 
     if (timerRef.current) clearInterval(timerRef.current);
 
-    onSessionEnd(historyRef.current, sessionIdRef.current);
+    onSessionEnd(messagesRef.current, sessionIdRef.current);
   }, [onSessionEnd]);
 
   // Start the session countdown timer — pauses while recording or processing
@@ -131,15 +133,16 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
 
         // Add user bubble with corrections
         const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-        setMessages((prev) => [
-          ...prev,
-          {
-            id,
-            role: 'user',
-            content: data.transcript,
-            corrections: data.corrections,
-          },
-        ]);
+        const userMsg = {
+          id,
+          role: 'user',
+          content: data.transcript,
+          corrections: data.corrections,
+        };
+        
+        setMessages((prev) => [...prev, userMsg]);
+        messagesRef.current.push(userMsg);
+        
         historyRef.current = [
           ...historyRef.current,
           { role: 'user', content: data.transcript },

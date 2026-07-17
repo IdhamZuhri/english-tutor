@@ -180,7 +180,7 @@ async def chat(
             session_id=session_id,
             role="user",
             content=transcript,
-            corrections_json=corrections.get("corrections", []) if corrections.get("has_corrections") else []
+            corrections_json=corrections
         )
         db.add(db_msg_user)
 
