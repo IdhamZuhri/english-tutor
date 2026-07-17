@@ -30,6 +30,7 @@ class ChatResponse(BaseModel):
 
 
 class AnalyzeRequest(BaseModel):
+    session_id: int
     history: List[HistoryMessage]
 
 

@@ -86,6 +86,17 @@ export function useAudioRecorder() {
 
       resolveRef.current = resolve;
       setIsRecording(false);
+      
+      try {
+        // Force the recorder to emit the final chunk of data before stopping.
+        // This prevents Safari/some browsers from truncating the last few words.
+        if (mediaRecorderRef.current.state === 'recording') {
+          mediaRecorderRef.current.requestData();
+        }
+      } catch (e) {
+        console.warn('requestData failed', e);
+      }
+      
       mediaRecorderRef.current.stop();
     });
   }, []);

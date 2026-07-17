@@ -24,12 +24,20 @@ export async function fetchOpeningMessage(topic) {
  * @param {Blob} audioBlob - recorded audio from MediaRecorder
  * @param {Array} history  - [{role, content}] conversation history
  * @param {string} topic   - current session topic
+ * @param {number} sessionId - current session ID
  */
-export async function sendChatTurn(audioBlob, history, topic) {
+export async function sendChatTurn(audioBlob, history, topic, sessionId) {
   const formData = new FormData();
-  formData.append('audio', audioBlob, 'audio.webm');
+  let ext = 'webm';
+  if (audioBlob.type.includes('mp4')) ext = 'm4a';
+  else if (audioBlob.type.includes('ogg')) ext = 'ogg';
+  else if (audioBlob.type.includes('wav')) ext = 'wav';
+  else if (audioBlob.type.includes('mpeg')) ext = 'mp3';
+
+  formData.append('audio', audioBlob, `audio.${ext}`);
   formData.append('history', JSON.stringify(history));
   formData.append('topic', topic);
+  formData.append('session_id', sessionId);
 
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
@@ -48,12 +56,13 @@ export async function sendChatTurn(audioBlob, history, topic) {
 /**
  * Send full session history for end-of-session scoring analysis.
  * @param {Array} history - [{role, content}] full conversation
+ * @param {number} sessionId - database session id
  */
-export async function analyzeSession(history) {
+export async function analyzeSession(history, sessionId) {
   const res = await fetch(`${BASE}/analyze`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ history }),
+    body: JSON.stringify({ history, session_id: sessionId }),
   });
 
   if (!res.ok) {
@@ -76,4 +85,18 @@ export function decodeAudioB64(b64) {
   }
   const blob = new Blob([bytes], { type: 'audio/wav' });
   return URL.createObjectURL(blob);
+}
+
+/** Fetch past sessions for the homepage */
+export async function fetchPastSessions() {
+  const res = await fetch(`${BASE}/sessions`);
+  if (!res.ok) throw new Error(`Failed to fetch sessions: ${res.status}`);
+  return res.json();
+}
+
+/** Fetch a specific session's details and history */
+export async function fetchSessionDetails(sessionId) {
+  const res = await fetch(`${BASE}/sessions/${sessionId}`);
+  if (!res.ok) throw new Error(`Failed to fetch session details: ${res.status}`);
+  return res.json();
 }

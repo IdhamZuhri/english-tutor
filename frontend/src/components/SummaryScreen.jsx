@@ -7,7 +7,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from 'recharts';
-import { analyzeSession } from '../services/api.js';
+import { analyzeSession, fetchSessionDetails } from '../services/api.js';
 
 const SCORE_META = {
   grammar:      { label: 'Grammar',            icon: '📝', color: '#8b5cf6' },
@@ -62,7 +62,7 @@ function CustomTooltip({ active, payload }) {
   return null;
 }
 
-export default function SummaryScreen({ history, topic, durationSecs, onRestart }) {
+export default function SummaryScreen({ history, sessionId, isHistoryView, topic, durationSecs, onRestart }) {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -74,8 +74,13 @@ export default function SummaryScreen({ history, topic, durationSecs, onRestart 
     const run = async () => {
       try {
         setLoading(true);
-        const result = await analyzeSession(history);
-        setData(result);
+        if (isHistoryView) {
+          const result = await fetchSessionDetails(sessionId);
+          setData(result);
+        } else {
+          const result = await analyzeSession(history, sessionId);
+          setData(result);
+        }
       } catch (err) {
         setError(err.message);
       } finally {
@@ -83,7 +88,7 @@ export default function SummaryScreen({ history, topic, durationSecs, onRestart 
       }
     };
     run();
-  }, []);
+  }, [history, sessionId, isHistoryView]);
 
   const radarData = data
     ? Object.entries(SCORE_META).map(([key, meta]) => ({
@@ -100,14 +105,14 @@ export default function SummaryScreen({ history, topic, durationSecs, onRestart 
         <div className="summary-title-wrap">
           <div className="summary-icon">🏆</div>
           <div>
-            <h1 className="gradient-text">Session Complete</h1>
+            <h1 className="gradient-text">{isHistoryView ? "Session History" : "Session Complete"}</h1>
             <p className="summary-meta">
-              Topic: <strong>{topic}</strong> · {Math.ceil(durationSecs / 60)} min session
+              Topic: <strong>{data?.topic || topic}</strong>
             </p>
           </div>
         </div>
         <button id="new-session-btn" className="btn btn-primary" onClick={onRestart}>
-          Start New Session
+          {isHistoryView ? "Back to Home" : "Start New Session"}
         </button>
       </header>
 

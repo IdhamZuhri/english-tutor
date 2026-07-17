@@ -11,11 +11,10 @@ logger = logging.getLogger(__name__)
 
 _client: AsyncOpenAI | None = None
 
+# Provide context rather than instructions, as instructions can cause Whisper to truncate audio
 STT_PROMPT = (
-    "Transcribe the following audio exactly as spoken by the user. "
-    "Return ONLY the transcribed words — no punctuation fixes, no commentary, no explanation. "
-    "If the audio contains only silence, background noise, breathing, or is inaudible, "
-    "return exactly this and nothing else: [EMPTY]"
+    "This is a transcript of an English learning session between a student and a tutor. "
+    "The student is practicing their spoken English."
 )
 
 def _is_rate_limit(exception: BaseException) -> bool:
@@ -52,13 +51,41 @@ async def transcribe_audio(audio_bytes: bytes, content_type: str = "audio/webm")
 
     logger.info(f"Transcribing {len(audio_bytes)} bytes via OpenAI model={model}")
 
-    # OpenAI requires a file-like object with a named extension
-    file_obj = io.BytesIO(audio_bytes)
-    file_obj.name = "audio.webm"
+    ext = "webm"
+    if "mp4" in content_type or "m4a" in content_type:
+        ext = "m4a"
+    elif "ogg" in content_type:
+        ext = "ogg"
+    elif "wav" in content_type:
+        ext = "wav"
+        
+    # Bulletproof magic bytes finder to strip any garbage prefix
+    magic_bytes = [
+        b"\x1a\x45\xdf\xa3",  # WebM
+        b"OggS",              # OGG
+        b"RIFF",              # WAV
+        b"ftyp",              # MP4/M4A (usually preceded by 4 bytes of length, but we can search for ftyp)
+        b"ID3"                # MP3
+    ]
+    
+    start_idx = 0
+    for magic in magic_bytes:
+        idx = audio_bytes.find(magic)
+        if idx != -1:
+            if magic == b"ftyp":
+                # ftyp is usually preceded by a 4-byte size integer, so we step back 4 bytes if possible
+                start_idx = max(0, idx - 4)
+            else:
+                start_idx = idx
+            break
+            
+    if start_idx > 0:
+        logger.info(f"Stripping {start_idx} bytes of garbage prefix from audio file.")
+        audio_bytes = audio_bytes[start_idx:]
 
     response = await client.audio.transcriptions.create(
         model=model,
-        file=file_obj,
+        file=(f"audio.{ext}", audio_bytes),
         prompt=STT_PROMPT,
         temperature=0.0
     )

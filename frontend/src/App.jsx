@@ -9,6 +9,7 @@ import SummaryScreen from './components/SummaryScreen.jsx';
  */
 export default function App() {
   const [screen, setScreen] = useState('setup');
+  const [isHistoryView, setIsHistoryView] = useState(false);
 
   // Session config — set on setup screen
   const [sessionConfig, setSessionConfig] = useState({
@@ -18,15 +19,26 @@ export default function App() {
 
   // Conversation history — accumulated during session, used for analysis
   const [history, setHistory] = useState([]);
+  const [sessionId, setSessionId] = useState(null);
 
   const handleStart = ({ topic, durationSecs }) => {
     setSessionConfig({ topic, durationSecs });
     setHistory([]);
+    setSessionId(null);
+    setIsHistoryView(false);
     setScreen('session');
   };
 
-  const handleSessionEnd = (conversationHistory) => {
+  const handleSessionEnd = (conversationHistory, sid) => {
     setHistory(conversationHistory);
+    setSessionId(sid);
+    setIsHistoryView(false);
+    setScreen('summary');
+  };
+
+  const handleViewHistory = (sid) => {
+    setSessionId(sid);
+    setIsHistoryView(true);
     setScreen('summary');
   };
 
@@ -38,7 +50,7 @@ export default function App() {
   return (
     <>
       {screen === 'setup' && (
-        <SetupScreen onStart={handleStart} />
+        <SetupScreen onStart={handleStart} onViewHistory={handleViewHistory} />
       )}
 
       {screen === 'session' && (
@@ -53,6 +65,8 @@ export default function App() {
       {screen === 'summary' && (
         <SummaryScreen
           history={history}
+          sessionId={sessionId}
+          isHistoryView={isHistoryView}
           topic={sessionConfig.topic}
           durationSecs={sessionConfig.durationSecs}
           onRestart={handleRestart}

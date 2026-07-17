@@ -4,3 +4,6 @@ python-dotenv
 openai
 tenacity
 python-multipart
+sqlalchemy
+asyncpg
+greenlet

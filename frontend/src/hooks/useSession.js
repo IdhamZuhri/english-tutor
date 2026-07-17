@@ -19,6 +19,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
   const timerRef = useRef(null);
   const sessionEndedRef = useRef(false);
   const historyRef = useRef([]);  // [{role, content}] mirror of messages for API calls
+  const sessionIdRef = useRef(null);
 
   // Clean up timer on unmount
   useEffect(() => {
@@ -53,7 +54,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
 
     if (timerRef.current) clearInterval(timerRef.current);
 
-    onSessionEnd(historyRef.current);
+    onSessionEnd(historyRef.current, sessionIdRef.current);
   }, [onSessionEnd]);
 
   // Start the session countdown timer — pauses while recording or processing
@@ -89,6 +90,8 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
       try {
         const data = await fetchOpeningMessage(topic);
         if (cancelled) return;
+        
+        sessionIdRef.current = data.session_id;
 
         addMessage('assistant', data.reply_text);
         setPrepTimeLeft(20);
@@ -118,7 +121,7 @@ export function useSession({ topic, durationSecs, onSessionEnd }) {
       setAppState('processing');
 
       try {
-        const data = await sendChatTurn(audioBlob, historyRef.current, topic);
+        const data = await sendChatTurn(audioBlob, historyRef.current, topic, sessionIdRef.current);
 
         if (data.error) {
           showToast(data.message || "I didn't catch that. Try again!", 'warning');
