@@ -207,42 +207,6 @@ async def chat(
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 
-# ─── Session Analysis ─────────────────────────────────────────────────────────
-
-@app.post("/api/analyze")
-async def analyze(request: AnalyzeRequest, db: AsyncSession = Depends(get_db)):
-    """
-    Analyze the full session transcript and return structured performance scores.
-    Called when the session ends (timer expires or user manually ends).
-    """
-    try:
-        if not request.history:
-            raise HTTPException(status_code=400, detail="No conversation history provided.")
-
-        history_dicts = [msg.model_dump() for msg in request.history]
-        result = await analyze_session(history_dicts)
-
-        # Save to DB
-        db_session = await db.get(Session, request.session_id)
-        if db_session:
-            db_session.grammar_score = result["scores"]["grammar"]
-            db_session.fluency_score = result["scores"]["fluency"]
-            db_session.vocabulary_score = result["scores"]["vocabulary"]
-            db_session.pronunciation_score = result["scores"]["pronunciation"]
-            db_session.filler_count = result["filler_count"]
-            db_session.summary = result["summary"]
-            db_session.justifications = result["justifications"]
-            await db.commit()
-
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.exception(f"Unexpected error in /api/analyze: {e}")
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
-
-
 # ─── Sessions Retrieval ───────────────────────────────────────────────────────
 
 @app.get("/api/sessions")

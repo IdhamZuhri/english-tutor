@@ -53,26 +53,6 @@ export async function sendChatTurn(audioBlob, history, topic, sessionId) {
   // Returns: { transcript, corrections, reply_text, reply_audio_b64, tts_fallback, error?, message? }
 }
 
-/**
- * Send full session history for end-of-session scoring analysis.
- * @param {Array} history - [{role, content}] full conversation
- * @param {number} sessionId - database session id
- */
-export async function analyzeSession(history, sessionId) {
-  const res = await fetch(`${BASE}/analyze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ history, session_id: sessionId }),
-  });
-
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.detail || `Analysis failed: ${res.status}`);
-  }
-
-  return res.json();
-  // Returns: { summary, scores, filler_count, justifications }
-}
 
 /**
  * Decode a base64 WAV string and return a playable Blob URL.

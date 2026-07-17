@@ -41,12 +41,6 @@ export default function HistoryScreen({ onViewHistory }) {
               >
                 <div className="recent-topic">{s.topic}</div>
                 <div className="recent-date">{new Date(s.created_at).toLocaleDateString()}</div>
-                <div className="recent-scores">
-                  <span title="Grammar">📝 {s.grammar_score || '-'}</span>
-                  <span title="Fluency">🗣️ {s.fluency_score || '-'}</span>
-                  <span title="Vocabulary">📚 {s.vocabulary_score || '-'}</span>
-                  <span title="Pronunciation">🎵 {s.pronunciation_score || '-'}</span>
-                </div>
               </div>
             ))}
           </div>
@@ -118,13 +112,6 @@ export default function HistoryScreen({ onViewHistory }) {
         .recent-date {
           font-size: 0.8rem;
           color: var(--text-muted);
-        }
-        .recent-scores {
-          display: flex;
-          gap: 12px;
-          font-size: 0.85rem;
-          color: var(--text-secondary);
-          margin-top: 8px;
         }
         .empty-sessions {
           padding: 40px 24px;
