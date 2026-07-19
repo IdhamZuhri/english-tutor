@@ -21,7 +21,6 @@ from db_models import Session, Message
 load_dotenv(override=True)
 
 from models import AnalyzeRequest
-from services.analysis import analyze_session
 from services.llm import generate_reply, get_corrections, get_opening_message
 from services.stt import transcribe_audio
 
@@ -268,3 +267,59 @@ async def get_session(session_id: int, db: AsyncSession = Depends(get_db)):
         logger.error(f"Error fetching session {session_id}: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch session")
 
+
+@app.get("/api/export-history")
+async def export_history(db: AsyncSession = Depends(get_db)):
+    """Export the last 10 sessions and their messages as a Markdown string."""
+    from sqlalchemy import select, desc
+    try:
+        # Get last 10 sessions
+        result = await db.execute(
+            select(Session)
+            .order_by(desc(Session.created_at))
+            .limit(10)
+        )
+        sessions = result.scalars().all()
+        
+        if not sessions:
+            return {"markdown": "# SpeakWell - Conversation History\n\nNo past sessions found."}
+        
+        md_lines = ["# SpeakWell - Conversation History\n"]
+        md_lines.append(f"Exported on: {sessions[0].created_at.strftime('%Y-%m-%d')} (Last 10 Sessions)\n")
+        
+        for s in sessions:
+            md_lines.append(f"## Session: {s.topic}")
+            md_lines.append(f"**Date:** {s.created_at.strftime('%Y-%m-%d %H:%M:%S')}")
+            if s.summary:
+                md_lines.append(f"**Summary:** {s.summary}")
+            md_lines.append("")
+            
+            # Get messages for this session
+            msg_result = await db.execute(
+                select(Message)
+                .where(Message.session_id == s.id)
+                .order_by(Message.created_at)
+            )
+            messages = msg_result.scalars().all()
+            
+            for m in messages:
+                role_name = "User" if m.role == "user" else "Alex (AI)"
+                md_lines.append(f"**{role_name}:** {m.content}")
+                
+                # Check for grammar corrections
+                if m.role == "user" and m.corrections_json:
+                    try:
+                        c_json = m.corrections_json if isinstance(m.corrections_json, dict) else json.loads(m.corrections_json)
+                        if c_json.get("has_corrections"):
+                            md_lines.append(f"> *Corrected:* {c_json.get('corrected_sentence')}")
+                            for c in c_json.get("corrections", []):
+                                md_lines.append(f"> * {c.get('original')} -> {c.get('corrected')} ({c.get('explanation')})")
+                    except Exception:
+                        pass
+                md_lines.append("")
+            md_lines.append("---\n")
+            
+        return {"markdown": "\n".join(md_lines)}
+    except Exception as e:
+        logger.error(f"Error exporting history: {e}")
+        raise HTTPException(status_code=500, detail="Failed to export history")

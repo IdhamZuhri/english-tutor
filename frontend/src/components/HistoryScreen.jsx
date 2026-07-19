@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { fetchPastSessions } from '../services/api.js';
+import { fetchPastSessions, exportHistory } from '../services/api.js';
 
 export default function HistoryScreen({ onViewHistory }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     fetchPastSessions()
@@ -17,6 +18,29 @@ export default function HistoryScreen({ onViewHistory }) {
       });
   }, []);
 
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const data = await exportHistory();
+      
+      // Create a Blob from the Markdown string and download it
+      const blob = new Blob([data.markdown], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `SpeakWell_History_${new Date().toISOString().split('T')[0]}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Export failed:', err);
+      alert('Failed to export history.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="history-screen">
       <header className="history-hero" style={{ marginBottom: '32px' }}>
@@ -24,6 +48,14 @@ export default function HistoryScreen({ onViewHistory }) {
         <p className="history-subtitle">
           Review your previous conversations and track your progress.
         </p>
+        <button 
+          className="btn btn-secondary" 
+          onClick={handleExport}
+          disabled={exporting || sessions.length === 0}
+          style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}
+        >
+          {exporting ? 'Exporting...' : '📄 Export to Markdown'}
+        </button>
       </header>
 
       <section className="history-section animate-in">

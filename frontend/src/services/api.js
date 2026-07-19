@@ -80,3 +80,10 @@ export async function fetchSessionDetails(sessionId) {
   if (!res.ok) throw new Error(`Failed to fetch session details: ${res.status}`);
   return res.json();
 }
+
+/** Export history of last 10 sessions as markdown */
+export async function exportHistory() {
+  const res = await fetch(`${BASE}/export-history`);
+  if (!res.ok) throw new Error(`Failed to export history: ${res.status}`);
+  return res.json();
+}
