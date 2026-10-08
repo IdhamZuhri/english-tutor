@@ -1,157 +1,125 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { fetchPastSessions, exportHistory } from '../services/api.js';
+import './HistoryScreen.css';
+
+const timestamp = session => {
+  const value = new Date(session.created_at).getTime();
+  return Number.isFinite(value) ? value : 0;
+};
 
 export default function HistoryScreen({ onViewHistory }) {
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [query, setQuery] = useState('');
+  const [sort, setSort] = useState('newest');
 
-  useEffect(() => {
-    fetchPastSessions()
-      .then(data => {
-        setSessions(data);
-        setLoading(false);
-      })
-      .catch(err => {
-        console.error(err);
-        setLoading(false);
-      });
-  }, []);
+  const loadSessions = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await fetchPastSessions();
+      setSessions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('History load failed:', err);
+      setError('Could not load your sessions. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { loadSessions(); }, []);
+
+  const groups = useMemo(() => {
+    const filtered = sessions
+      .filter(session => (session.topic || '').toLowerCase().includes(query.trim().toLowerCase()))
+      .sort((a, b) => sort === 'newest' ? timestamp(b) - timestamp(a) : timestamp(a) - timestamp(b));
+    const grouped = new Map();
+    for (const session of filtered) {
+      const date = new Date(session.created_at);
+      const label = Number.isNaN(date.getTime()) ? 'Date unknown' : date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+      if (!grouped.has(label)) grouped.set(label, []);
+      grouped.get(label).push(session);
+    }
+    return [...grouped];
+  }, [sessions, query, sort]);
 
   const handleExport = async () => {
     try {
       setExporting(true);
       const data = await exportHistory();
-      
-      // Create a Blob from the Markdown string and download it
       const blob = new Blob([data.markdown], { type: 'text/markdown' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `SpeakWell_History_${new Date().toISOString().split('T')[0]}.md`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `SpeakWell_History_${new Date().toISOString().split('T')[0]}.md`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (err) {
       console.error('Export failed:', err);
-      alert('Failed to export history.');
+      setError('Could not export your history. Please try again.');
     } finally {
       setExporting(false);
     }
   };
 
   return (
-    <div className="history-screen">
-      <header className="history-hero" style={{ marginBottom: '32px' }}>
-        <h1 className="gradient-text">Past Sessions</h1>
-        <p className="history-subtitle">
-          Review your previous conversations and track your progress.
-        </p>
-        <button 
-          className="btn btn-secondary" 
-          onClick={handleExport}
-          disabled={exporting || sessions.length === 0}
-          style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          {exporting ? 'Exporting...' : '📄 Export to Markdown'}
+    <div className="history-screen animate-in">
+      <header className="history-header">
+        <div>
+          <p className="history-eyebrow">Your practice</p>
+          <h1>Conversation history</h1>
+          <p className="history-subtitle">Revisit what you practiced, one conversation at a time.</p>
+        </div>
+        <button className="btn btn-secondary history-export" onClick={handleExport} disabled={loading || exporting || sessions.length === 0}>
+          {exporting ? 'Exporting…' : 'Export Markdown'}
         </button>
       </header>
 
-      <section className="history-section animate-in">
-        {loading ? (
-          <div className="flex justify-center" style={{ padding: '40px' }}>
-            <div className="spinner"></div>
-          </div>
-        ) : sessions.length > 0 ? (
-          <div className="recent-sessions-grid">
-            {sessions.map(s => (
-              <div 
-                key={s.id} 
-                className="recent-session-card glass-card glass-card-hover"
-                onClick={() => onViewHistory(s.id)}
-              >
-                <div className="recent-topic">{s.topic}</div>
-                <div className="recent-date">{new Date(s.created_at).toLocaleDateString()}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-sessions glass-card">
-            <p>No past sessions yet. Start a conversation to see your history here!</p>
-          </div>
-        )}
+      {!loading && !error && sessions.length > 0 && (
+        <div className="history-toolbar">
+          <label className="history-search">
+            <span className="sr-only">Search sessions by topic</span>
+            <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search topics" />
+          </label>
+          <label className="history-sort">
+            <span>Sort</span>
+            <select value={sort} onChange={event => setSort(event.target.value)}>
+              <option value="newest">Newest first</option>
+              <option value="oldest">Oldest first</option>
+            </select>
+          </label>
+        </div>
+      )}
+
+      <section className="history-content" aria-live="polite">
+        {loading ? <div className="history-state glass-card"><div className="spinner" /><p>Loading your sessions…</p></div>
+          : error ? <div className="history-state glass-card"><h2>History unavailable</h2><p>{error}</p><button className="btn btn-secondary" onClick={loadSessions}>Try again</button></div>
+          : sessions.length === 0 ? <div className="history-state glass-card"><div className="history-empty-icon" aria-hidden="true">✦</div><h2>Your story starts here</h2><p>Your conversations will appear here after your first practice session.</p></div>
+          : groups.length === 0 ? <div className="history-state glass-card"><h2>No matching sessions</h2><p>Try another topic or clear your search.</p><button className="btn btn-secondary" onClick={() => setQuery('')}>Clear search</button></div>
+          : <>
+              <p className="history-count">{groups.reduce((count, [, items]) => count + items.length, 0)} of {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}</p>
+              {groups.map(([month, items]) => (
+                <div className="history-group" key={month}>
+                  <h2>{month}</h2>
+                  <div className="history-list">
+                    {items.map(session => {
+                      const date = new Date(session.created_at);
+                      const validDate = !Number.isNaN(date.getTime());
+                      return <button type="button" className="history-row glass-card" key={session.id} onClick={() => onViewHistory(session.id)} aria-label={`View ${session.topic || 'Untitled session'} session${validDate ? ` from ${date.toLocaleDateString()}` : ''}`}>
+                        <span className="history-row-icon" aria-hidden="true">✦</span>
+                        <span className="history-row-main"><strong>{session.topic || 'Untitled session'}</strong><small>{validDate ? date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unknown'}</small></span>
+                        <span className="history-row-action" aria-hidden="true">View conversation <span>→</span></span>
+                      </button>;
+                    })}
+                  </div>
+                </div>
+              ))}
+            </>}
       </section>
-
-      <style>{`
-        .history-screen {
-          min-height: 100vh;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          padding: 48px 24px 64px;
-          position: relative;
-          z-index: 1;
-          max-width: 900px;
-          margin: 0 auto;
-          width: 100%;
-        }
-
-        .history-hero {
-          text-align: center;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 12px;
-        }
-
-        .history-hero h1 {
-          font-size: 3rem;
-          letter-spacing: -0.04em;
-        }
-
-        .history-subtitle {
-          color: var(--text-secondary);
-          font-size: 1.0625rem;
-          line-height: 1.7;
-        }
-
-        .history-section {
-          width: 100%;
-          display: flex;
-          flex-direction: column;
-          gap: 16px;
-        }
-        
-        .recent-sessions-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-          gap: 16px;
-          width: 100%;
-        }
-        .recent-session-card {
-          padding: 20px;
-          cursor: pointer;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .recent-topic {
-          font-weight: 600;
-          font-size: 1.1rem;
-          color: var(--text-primary);
-        }
-        .recent-date {
-          font-size: 0.8rem;
-          color: var(--text-muted);
-        }
-        .empty-sessions {
-          padding: 40px 24px;
-          text-align: center;
-          color: var(--text-muted);
-          font-size: 1rem;
-        }
-      `}</style>
     </div>
   );
 }

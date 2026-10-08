@@ -144,7 +144,7 @@ async function api(req, res, pathname, searchParams) {
     return json(res, 200, { transcript, corrections, reply_text: reply, reply_audio_b64: null, tts_fallback: false });
   }
   if (pathname === '/api/sessions' && req.method === 'GET') {
-    return json(res, 200, store.sessions.slice(-10).reverse().map(s => ({ id: s.id, topic: s.topic, created_at: s.created_at, grammar_score: s.scores?.grammar ?? null, fluency_score: s.scores?.fluency ?? null, vocabulary_score: s.scores?.vocabulary ?? null, pronunciation_score: s.scores?.pronunciation ?? null })));
+    return json(res, 200, store.sessions.slice().reverse().map(s => ({ id: s.id, topic: s.topic, created_at: s.created_at, grammar_score: s.scores?.grammar ?? null, fluency_score: s.scores?.fluency ?? null, vocabulary_score: s.scores?.vocabulary ?? null, pronunciation_score: s.scores?.pronunciation ?? null })));
   }
   const sessionMatch = pathname.match(/^\/api\/sessions\/(\d+)$/);
   if (sessionMatch && req.method === 'GET') {
@@ -154,7 +154,7 @@ async function api(req, res, pathname, searchParams) {
   }
   if (pathname === '/api/export-history' && req.method === 'GET') {
     const lines = ['# SpeakWell - Conversation History', ''];
-    for (const s of store.sessions.slice(-10).reverse()) {
+    for (const s of store.sessions.slice().reverse()) {
       lines.push(`## ${s.topic}`, `**Date:** ${s.created_at}`, '');
       for (const m of s.history) lines.push(`**${m.role === 'user' ? 'You' : 'Alex'}:** ${m.content}`, '');
       lines.push('---', '');
