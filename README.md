@@ -1,144 +1,42 @@
-# SpeakWell — AI English Speaking Companion
+# SpeakWell
 
-A personal, local AI English speaking practice app. Talk to Alex (your AI companion) by voice, get inline grammar corrections as you speak, and receive a detailed performance breakdown at the end of each session.
+SpeakWell is a local English conversation practice app. Speak into your microphone, receive a short AI reply and written grammar suggestions, then review past sessions. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and conversation.
 
----
+## Requirements
 
-## Architecture
+- Node.js 20 or newer and npm
+- An OpenAI API key with API access
+- A browser with microphone support
 
-```
-Browser (React + Vite)          Backend (FastAPI)           External APIs
-─────────────────────    ───────────────────────────   ─────────────────────
-SetupScreen              POST /api/chat                 OpenAI Whisper (STT)
-  → topic + duration     ├─ stt.py  → Whisper           Google Gemini (LLM)
-ChatScreen      ─────►  ├─ llm.py  → Gemini chat        Google Gemini TTS
-  → audio blob           ├─ llm.py  → Gemini corrections
-SummaryScreen   ◄─────  └─ tts.py  → Gemini TTS
-  → radar chart          POST /api/analyze
-                         └─ analysis.py → Gemini scoring
-```
+Python and PostgreSQL are not required for the current app.
 
-**Key design decisions:**
-- Two Gemini calls per turn (conversation reply + corrections) run **concurrently** via `asyncio.gather`, adding minimal latency.
-- Grammar corrections are **silent** — never spoken aloud — keeping the conversation natural.
-- Gemini TTS returns raw PCM → backend wraps in WAV → frontend plays natively. Falls back to browser Web Speech API if Gemini TTS is unavailable.
+## Run on Windows
 
----
+1. In `backend/.env`, set `OPENAI_API_KEY=...`. You can copy `backend/.env.example` if the file does not exist. Keep this file private.
+2. Double-click `start.bat`, or run `./start.bat` from PowerShell in this folder.
+3. Open <http://localhost:8000> and allow microphone access.
 
-## Prerequisites
+The launcher installs frontend packages if needed, builds the frontend, and starts one local server. Leave its terminal window open while using the app. Press Ctrl+C to stop it.
 
-- **Python 3.11+** (`python --version`)
-- **Node.js 18+** + npm (`node --version`)
-- An **OpenAI API key** (for Whisper transcription)
-- A **Google Gemini API key** (for conversation, corrections, TTS, and analysis)
+## Run with commands
 
----
-
-## Setup & Running
-
-### Step 1 — Clone / navigate to the project
-
-```bash
-cd d:\EnglishTutor
+```powershell
+npm.cmd --prefix frontend install
+npm.cmd run build
+npm.cmd start
 ```
 
-### Step 2 — Configure API keys
+For frontend development, run `npm.cmd run dev` in another terminal, then open <http://localhost:5173>. Its `/api` requests proxy to the Node server on port 8000.
 
-```bash
-# Copy the example env file
-copy backend\.env.example backend\.env
-```
+## Data and configuration
 
-Then open `backend\.env` and fill in your keys:
+Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file to preserve your history. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-4o-mini`. `PORT` can change the server port, but the Windows launcher opens port 8000.
 
-```env
-OPENAI_API_KEY=sk-your-openai-key-here
-GEMINI_API_KEY=AIza-your-gemini-key-here
-```
-
-### Step 3 — The Practical Way (Windows only)
-
-If you are on Windows, we have provided a `start.bat` file to easily run the system.
-
-Simply double-click `start.bat` in the root folder, or run:
-```bash
-start.bat
-```
-This script will automatically:
-1. Start the backend in a new terminal window
-2. Start the frontend in a new terminal window
-3. Open your browser to http://localhost:5173
-
-> ⚠️ **Microphone permissions**: Your browser will ask for mic access the first time you press the record button. Click "Allow".
-
-### Step 3 (Alternative) — Manual Startup
-
-If you prefer to start them manually (or are not on Windows), follow these steps:
-
-#### Backend
-Open a terminal and run:
-
-```bash
-cd backend
-python -m venv venv
-venv\Scripts\activate       # Windows PowerShell: .\venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
-```
-
-#### Frontend
-Open a **second terminal** and run:
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Navigate to **http://localhost:5173** in your browser.
-
----
-
-## Optional Configuration
-
-Edit `backend/.env` to tweak:
-
-| Variable           | Default                          | Description                            |
-|--------------------|----------------------------------|----------------------------------------|
-| `GEMINI_TTS_VOICE` | `Aoede`                          | Voice name: Aoede, Charon, Fenrir, Kore, Puck |
-| `GEMINI_MODEL`     | `gemini-2.0-flash`               | Gemini model for chat + analysis       |
-| `GEMINI_TTS_MODEL` | `gemini-2.5-flash-preview-tts`   | Gemini TTS model                       |
-
-> **TTS fallback**: If your Gemini API key doesn't have TTS access, the app automatically falls back to your browser's built-in `SpeechSynthesis` API. You'll still hear the companion speak — the voice just won't be Gemini's.
-
----
-
-## Data Flow (per conversation turn)
-
-```
-1. [Browser] User presses mic → MediaRecorder starts (WebM/Opus)
-2. [Browser] User releases mic → audio Blob created
-3. [Browser → Backend] POST /api/chat (multipart: audio + history + topic)
-4. [Backend] Whisper transcribes audio → transcript string
-5. [Backend] Gemini (concurrent):
-     a. Generate conversational reply
-     b. Analyze grammar → correction JSON
-6. [Backend] Gemini TTS → PCM → WAV → base64
-7. [Backend → Browser] { transcript, corrections, reply_text, reply_audio_b64 }
-8. [Browser] Render user bubble (with corrections)
-9. [Browser] Render AI bubble + play WAV audio
-10. [Browser] When audio ends → return to idle state
-```
-
----
+The app currently displays text replies. Spoken replies and scored session analysis are not enabled in the current interface.
 
 ## Troubleshooting
 
-| Problem | Solution |
-|---------|----------|
-| "Missing required environment variables" | Check `backend/.env` has both keys |
-| Microphone not working | Check browser permissions (🔒 icon in address bar) |
-| Empty transcript ("I didn't catch that") | Speak clearly and a bit louder; check mic level in OS settings |
-| TTS falls back to browser voice | Your Gemini API key may not have TTS access yet (preview feature) |
-| Backend 502 error | Check your OpenAI / Gemini API quotas and key validity |
-| Port 8000 already in use | Change port: `uvicorn main:app --port 8001` and update `frontend/vite.config.js` proxy target |
+- If the page says the API key is missing, check `backend/.env` and restart the server.
+- If the browser cannot reach the app, check the launcher terminal for errors and confirm port 8000 is free.
+- If recording fails, allow microphone permission for `localhost` in your browser.
+- If an AI request fails, check your API key, network access, and OpenAI account limits. The server shows the returned error in its terminal.

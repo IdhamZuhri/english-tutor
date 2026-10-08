@@ -1,6 +1,5 @@
 /**
- * API service layer — all calls to the FastAPI backend.
- * The Vite proxy forwards /api/* to http://localhost:8000.
+ * API service layer — calls to the local Node backend.
  */
 
 const BASE = '/api';
