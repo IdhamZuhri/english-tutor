@@ -5,6 +5,7 @@ import SummaryScreen from './components/SummaryScreen.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import HistoryScreen from './components/HistoryScreen.jsx';
 import PracticeScreen from './components/PracticeScreen.jsx';
+import { validPersona } from './personas.js';
 
 /**
  * App — top-level screen router.
@@ -13,12 +14,23 @@ import PracticeScreen from './components/PracticeScreen.jsx';
 export default function App() {
   const [screen, setScreen] = useState('setup');
   const [isHistoryView, setIsHistoryView] = useState(false);
+  const [persona, setPersona] = useState(() => {
+    try { return validPersona(localStorage.getItem('speakwell-persona')); }
+    catch { return 'balanced'; }
+  });
+
+  const handlePersonaChange = value => {
+    const next = validPersona(value);
+    setPersona(next);
+    try { localStorage.setItem('speakwell-persona', next); } catch { /* Storage may be unavailable. */ }
+  };
 
   // Session config — set on setup screen
   const [sessionConfig, setSessionConfig] = useState({
     topic: '',
     durationSecs: 300,
     focus: null,
+    persona: 'balanced',
   });
 
   // Conversation history — accumulated during session, used for analysis
@@ -26,7 +38,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null);
 
   const handleStart = ({ topic, durationSecs }) => {
-    setSessionConfig({ topic, durationSecs, focus: null });
+    setSessionConfig({ topic, durationSecs, focus: null, persona });
     setHistory([]);
     setSessionId(null);
     setIsHistoryView(false);
@@ -34,7 +46,7 @@ export default function App() {
   };
 
   const handleFocusedStart = ({ topic, focus }) => {
-    setSessionConfig({ topic, durationSecs: 300, focus });
+    setSessionConfig({ topic, durationSecs: 300, focus, persona });
     setHistory([]);
     setSessionId(null);
     setIsHistoryView(false);
@@ -69,7 +81,7 @@ export default function App() {
       
       <main className="main-content">
         {screen === 'setup' && (
-          <SetupScreen onStart={handleStart} />
+          <SetupScreen onStart={handleStart} persona={persona} onPersonaChange={handlePersonaChange} />
         )}
 
         {screen === 'history' && (
@@ -85,6 +97,7 @@ export default function App() {
           topic={sessionConfig.topic}
           durationSecs={sessionConfig.durationSecs}
           focus={sessionConfig.focus}
+          persona={sessionConfig.persona}
           onSessionEnd={handleSessionEnd}
           onExit={handleRestart}
         />

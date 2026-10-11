@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Icon from './Icon.jsx';
+import { PERSONAS } from '../personas.js';
 
 const TOPICS = [
   { id: 'travel',       label: 'Travel',           icon: 'plane',  desc: 'Trips, destinations, adventures' },
@@ -12,7 +13,7 @@ const TOPICS = [
   { id: 'business',     label: 'Business English',  icon: 'chart',  desc: 'Meetings, presentations, networking' },
 ];
 
-export default function SetupScreen({ onStart }) {
+export default function SetupScreen({ onStart, persona, onPersonaChange }) {
   const [selectedTopic, setSelectedTopic]   = useState(null);
   const [customTopic, setCustomTopic]       = useState('');
   const [duration, setDuration]             = useState(5);
@@ -91,6 +92,28 @@ export default function SetupScreen({ onStart }) {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="setup-section" aria-labelledby="persona-heading">
+        <div className="setup-section-header">
+          <h3 id="persona-heading">Choose Your Speaking Partner</h3>
+        </div>
+        <p className="persona-intro">Pick the conversation style that helps you practice best.</p>
+        <div className="persona-grid" role="group" aria-label="Speaking partner style">
+          {PERSONAS.map(option => (
+            <button
+              key={option.id}
+              type="button"
+              className={`persona-card glass-card ${persona === option.id ? 'persona-card--selected' : ''}`}
+              onClick={() => onPersonaChange(option.id)}
+              aria-pressed={persona === option.id}
+            >
+              <span className="persona-card-icon"><Icon name={option.icon} size={21} /></span>
+              <span className="persona-card-copy"><strong>{option.label}</strong><small>{option.description}</small></span>
+              {persona === option.id && <Icon name="check" size={17} className="persona-card-check" />}
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Duration */}
@@ -262,6 +285,18 @@ export default function SetupScreen({ onStart }) {
         }
 
         /* Custom Topic */
+        .persona-intro { color: var(--text-secondary); font-size: 0.875rem; margin-top: -8px; }
+        .persona-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .persona-card { display: flex; align-items: center; gap: 12px; min-width: 0; padding: 15px; text-align: left; color: var(--text-primary); font: inherit; cursor: pointer; border-radius: var(--radius-lg); transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast); }
+        .persona-card:hover { background: var(--bg-card-hover); border-color: var(--border-default); transform: translateY(-1px); }
+        .persona-card--selected { background: var(--accent-dim) !important; border-color: var(--accent-border) !important; }
+        .persona-card-icon { flex: none; width: 40px; height: 40px; display: grid; place-items: center; border-radius: 11px; color: var(--accent-light); background: var(--accent-dim); }
+        .persona-card-copy { min-width: 0; display: grid; gap: 2px; }
+        .persona-card-copy strong { font-size: 0.9rem; font-weight: 600; }
+        .persona-card-copy small { color: var(--text-secondary); font-size: 0.75rem; line-height: 1.4; }
+        .persona-card-check { flex: none; margin-left: auto; color: var(--accent-light); }
+        .persona-card:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 3px; }
+        @media (max-width: 560px) { .persona-grid { grid-template-columns: 1fr; } }
         .custom-topic-wrap {
           display: flex;
           flex-direction: column;

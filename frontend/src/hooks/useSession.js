@@ -8,7 +8,7 @@ import { sendChatTurn, fetchOpeningMessage } from '../services/api.js';
  *   'processing' — waiting for API response
  */
 
-export function useSession({ topic, durationSecs, focus, onSessionEnd }) {
+export function useSession({ topic, durationSecs, focus, persona, onSessionEnd }) {
   const [appState, setAppState] = useState('idle');
   const [messages, setMessages] = useState([]);   // [{id, role, content, corrections}]
   const [timeLeft, setTimeLeft] = useState(durationSecs);
@@ -90,7 +90,7 @@ export function useSession({ topic, durationSecs, focus, onSessionEnd }) {
     const init = async () => {
       setIsInitializing(true);
       try {
-        const data = await fetchOpeningMessage(topic, focus);
+        const data = await fetchOpeningMessage(topic, focus, persona);
         if (cancelled) return;
         
         sessionIdRef.current = data.session_id;

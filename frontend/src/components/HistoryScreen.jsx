@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { fetchPastSessions, exportHistory } from '../services/api.js';
 import './HistoryScreen.css';
 import Icon from './Icon.jsx';
+import { PERSONAS } from '../personas.js';
 
 const timestamp = session => {
   const value = new Date(session.created_at).getTime();
@@ -114,7 +115,7 @@ export default function HistoryScreen({ onViewHistory }) {
                       const validDate = !Number.isNaN(date.getTime());
                       return <button type="button" className="history-row glass-card" key={session.id} onClick={() => onViewHistory(session.id)} aria-label={`View ${session.topic || 'Untitled session'} session${validDate ? ` from ${date.toLocaleDateString()}` : ''}`}>
                         <span className="history-row-icon"><Icon name="chat" size={21} /></span>
-                        <span className="history-row-main"><strong>{session.topic || 'Untitled session'}</strong><small>{validDate ? date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unknown'}</small></span>
+                        <span className="history-row-main"><strong>{session.topic || 'Untitled session'}</strong><small>{validDate ? date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unknown'} · {PERSONAS.find(persona => persona.id === session.persona)?.label || 'Balanced'}</small></span>
                         <span className="history-row-action" aria-hidden="true">View conversation <span>→</span></span>
                       </button>;
                     })}

@@ -11,10 +11,12 @@ test('local server serves the app and persists a conversation', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
   const { server } = await import('./server.mjs');
   const realFetch = globalThis.fetch;
+  const completionPrompts = [];
   globalThis.fetch = async (url, options) => {
     if (String(url).startsWith('http://127.0.0.1:')) return realFetch(url, options);
     if (String(url).endsWith('/audio/transcriptions')) return Response.json({ text: 'I go to school yesterday.' });
     const request = JSON.parse(options.body);
+    completionPrompts.push(request.messages);
     if (request.response_format) return Response.json({ choices: [{ message: { content: JSON.stringify({ has_corrections: true, corrected_sentence: 'I went to school yesterday.', corrections: [{ original: 'go', corrected: 'went', explanation: 'Past tense' }] }) } }] });
     return Response.json({ choices: [{ message: { content: 'What did you learn there?' } }] });
   };
@@ -28,8 +30,9 @@ test('local server serves the app and persists a conversation', async () => {
     const health = await (await realFetch(`${base}/api/health`)).json();
     assert.equal(health.ready, true);
 
-    const opening = await (await realFetch(`${base}/api/opening?topic=Travel`)).json();
+    const opening = await (await realFetch(`${base}/api/opening?topic=Travel&persona=chill`)).json();
     assert.equal(opening.session_id, 1);
+    assert.match(completionPrompts[0][0].content, /relaxed, easygoing friend/);
 
     const form = new FormData();
     form.append('audio', new Blob([Buffer.alloc(9000)], { type: 'audio/webm' }), 'audio.webm');
@@ -39,6 +42,7 @@ test('local server serves the app and persists a conversation', async () => {
     const chat = await (await realFetch(`${base}/api/chat`, { method: 'POST', body: form })).json();
     assert.equal(chat.transcript, 'I go to school yesterday.');
     assert.equal(chat.corrections.corrected_sentence, 'I went to school yesterday.');
+    assert.ok(completionPrompts.some(messages => messages[0]?.role === 'system' && /relaxed, easygoing friend/.test(messages[0].content) && messages.some(message => message.content === chat.transcript)));
 
     const practice = await (await realFetch(`${base}/api/practice`)).json();
     assert.equal(practice.turnCount, 1);
@@ -53,8 +57,10 @@ test('local server serves the app and persists a conversation', async () => {
 
     const sessions = await (await realFetch(`${base}/api/sessions`)).json();
     assert.equal(sessions.length, 1);
+    assert.equal(sessions[0].persona, 'chill');
     const detail = await (await realFetch(`${base}/api/sessions/1`)).json();
     assert.equal(detail.history.length, 3);
+    assert.equal(detail.persona, 'chill');
     const exported = await (await realFetch(`${base}/api/export-history`)).json();
     assert.match(exported.markdown, /I go to school yesterday/);
     const saved = JSON.parse(await readFile(dataFile, 'utf8'));

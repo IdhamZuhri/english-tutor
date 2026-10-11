@@ -25,6 +25,14 @@ async function loadEnv() {
 await loadEnv();
 const apiKey = process.env.OPENAI_API_KEY?.trim();
 const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+const personaInstructions = {
+  balanced: 'Be a natural, friendly conversation partner. Use clear everyday English and ask one relevant follow-up question.',
+  chill: 'Be a relaxed, easygoing friend. Use natural conversational English, keep the tone low pressure, and ask casual follow-up questions without excessive slang.',
+  coach: 'Be a patient, encouraging speaking coach. Give the learner time to explain, ask one manageable question at a time, and help them continue when they get stuck. Keep corrections out of spoken replies.',
+  professional: 'Be a courteous professional conversation partner. Use clear workplace English and realistic work situations, with polished but accessible language.',
+  challenger: 'Be a thoughtful discussion partner. Ask respectful follow-up questions that invite reasons, examples, and alternative viewpoints. Keep disagreement friendly and accessible.',
+};
+const validPersona = value => Object.hasOwn(personaInstructions, value) ? value : 'balanced';
 let store;
 try {
   store = JSON.parse(await readFile(dataFile, 'utf8'));
@@ -113,10 +121,12 @@ async function api(req, res, pathname, searchParams) {
   if (pathname === '/api/opening' && req.method === 'GET') {
     const topic = (searchParams.get('topic') || 'Small Talk').slice(0, 80);
     const focus = ['Grammar', 'Sentence structure', 'Vocabulary'].includes(searchParams.get('focus')) ? searchParams.get('focus') : null;
-    const reply = await complete([{ role: 'user', content: focus
-      ? `You are Alex, an English speaking coach. Start a realistic conversation about ${topic} that lets the learner practice ${focus.toLowerCase()}. Ask one specific, open-ended question. Do not give a lecture or correction. Maximum two sentences.`
-      : `You are Alex, a warm English conversation partner. Start a natural conversation about ${topic}. Write one brief greeting and one engaging question. Maximum two sentences.` }]);
-    const session = { id: store.nextId++, topic, focus, created_at: new Date().toISOString(), history: [{ role: 'assistant', content: reply }], summary: null, scores: null, filler_count: null, justifications: null };
+    const persona = validPersona(searchParams.get('persona'));
+    const reply = await complete([
+      { role: 'system', content: `You are Alex, the learner's English speaking partner. ${personaInstructions[persona]} ${focus ? `Help the learner practice ${focus.toLowerCase()} through this conversation.` : ''} Keep the reply to one brief greeting and one engaging question. Do not lecture or give grammar corrections aloud.` },
+      { role: 'user', content: `Start a conversation about ${topic}.` },
+    ]);
+    const session = { id: store.nextId++, topic, focus, persona, created_at: new Date().toISOString(), history: [{ role: 'assistant', content: reply }], summary: null, scores: null, filler_count: null, justifications: null };
     store.sessions.push(session);
     await save();
     return json(res, 200, { session_id: session.id, reply_text: reply, reply_audio_b64: null, tts_fallback: false });
@@ -136,9 +146,7 @@ async function api(req, res, pathname, searchParams) {
     if (!transcript || transcript.split(/\s+/).length < 2) return json(res, 200, { error: 'empty', message: "I didn't catch that. Please try again." });
     const history = safeMessages(session.history);
     const [reply, rawCorrections] = await Promise.all([
-      complete([{ role: 'system', content: session.focus
-        ? `You are Alex, an English speaking coach. Discuss ${session.topic}. Help the learner practice ${session.focus.toLowerCase()} through natural follow-up questions. Reply in one or two short sentences. Do not speak corrections aloud.`
-        : `You are Alex, a warm English conversation partner. Discuss ${session.topic}. Reply naturally in one or two short sentences and end with a question. Never speak grammar corrections aloud.` }, ...history, { role: 'user', content: transcript }]),
+      complete([{ role: 'system', content: `You are Alex, the learner's English speaking partner. ${personaInstructions[validPersona(session.persona)]} Discuss ${session.topic}. ${session.focus ? `Help the learner practice ${session.focus.toLowerCase()} through natural follow-up questions.` : ''} Reply in one or two short sentences and end with a question. Do not speak corrections aloud.` }, ...history, { role: 'user', content: transcript }]),
       complete([{ role: 'user', content: `Analyze this learner's spoken sentence, transcribed to text: ${JSON.stringify(transcript)}. Return JSON with has_corrections (boolean), corrected_sentence (string), and corrections (array of objects with original, corrected, explanation, category). Category must be Grammar, Sentence structure, or Vocabulary. Include only clear grammar, structure, or word-choice errors. Do not change informal style or personal word preference. Do not assess pronunciation or fluency from text.` }], true),
     ]);
     const corrections = {
@@ -151,7 +159,7 @@ async function api(req, res, pathname, searchParams) {
     return json(res, 200, { transcript, corrections, reply_text: reply, reply_audio_b64: null, tts_fallback: false });
   }
   if (pathname === '/api/sessions' && req.method === 'GET') {
-    return json(res, 200, store.sessions.slice().reverse().map(s => ({ id: s.id, topic: s.topic, created_at: s.created_at, grammar_score: s.scores?.grammar ?? null, fluency_score: s.scores?.fluency ?? null, vocabulary_score: s.scores?.vocabulary ?? null, pronunciation_score: s.scores?.pronunciation ?? null })));
+    return json(res, 200, store.sessions.slice().reverse().map(s => ({ id: s.id, topic: s.topic, persona: validPersona(s.persona), created_at: s.created_at, grammar_score: s.scores?.grammar ?? null, fluency_score: s.scores?.fluency ?? null, vocabulary_score: s.scores?.vocabulary ?? null, pronunciation_score: s.scores?.pronunciation ?? null })));
   }
   if (pathname === '/api/practice' && req.method === 'GET') {
     return json(res, 200, practiceInsights(store.sessions, store.practiceAttempts));
@@ -170,7 +178,7 @@ async function api(req, res, pathname, searchParams) {
   if (sessionMatch && req.method === 'GET') {
     const s = store.sessions.find(item => item.id === Number(sessionMatch[1]));
     if (!s) return json(res, 404, { detail: 'Session not found' });
-    return json(res, 200, { summary: s.summary, topic: s.topic, scores: s.scores, filler_count: s.filler_count, justifications: s.justifications, history: s.history });
+    return json(res, 200, { summary: s.summary, topic: s.topic, persona: validPersona(s.persona), scores: s.scores, filler_count: s.filler_count, justifications: s.justifications, history: s.history });
   }
   if (pathname === '/api/export-history' && req.method === 'GET') {
     const lines = ['# SpeakWell - Conversation History', ''];

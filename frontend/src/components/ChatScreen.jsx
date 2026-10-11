@@ -5,8 +5,9 @@ import ChatBubble from './ChatBubble.jsx';
 import MicButton from './MicButton.jsx';
 import SessionTimer from './SessionTimer.jsx';
 import Icon from './Icon.jsx';
+import { PERSONAS } from '../personas.js';
 
-export default function ChatScreen({ topic, durationSecs, focus, onSessionEnd, onExit }) {
+export default function ChatScreen({ topic, durationSecs, focus, persona, onSessionEnd, onExit }) {
   const { isRecording, micError, startRecording, stopRecording } = useAudioRecorder();
   const chatBottomRef = useRef(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -20,7 +21,7 @@ export default function ChatScreen({ topic, durationSecs, focus, onSessionEnd, o
     isInitializing,
     processTurn,
     endSession,
-  } = useSession({ topic, durationSecs, focus, onSessionEnd });
+  } = useSession({ topic, durationSecs, focus, persona, onSessionEnd });
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -77,7 +78,7 @@ export default function ChatScreen({ topic, durationSecs, focus, onSessionEnd, o
           <span className="chat-logo"><Icon name="mic" size={24} /></span>
           <div className="chat-meta">
             <span className="chat-title">SpeakWell</span>
-            <span className="chat-topic">{topic}</span>
+            <span className="chat-topic">{topic} · {PERSONAS.find(option => option.id === persona)?.label || 'Balanced'}</span>
           </div>
         </div>
 

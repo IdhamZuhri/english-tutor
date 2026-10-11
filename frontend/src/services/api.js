@@ -11,8 +11,8 @@ export async function healthCheck() {
 }
 
 /** Fetch the companion's opening message for a new session. */
-export async function fetchOpeningMessage(topic, focus = null) {
-  const params = new URLSearchParams({ topic });
+export async function fetchOpeningMessage(topic, focus = null, persona = 'balanced') {
+  const params = new URLSearchParams({ topic, persona });
   if (focus) params.set('focus', focus);
   const res = await fetch(`${BASE}/opening?${params}`);
   if (!res.ok) throw new Error(`Opening message failed: ${res.status}`);
