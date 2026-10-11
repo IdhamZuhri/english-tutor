@@ -28,10 +28,9 @@
 .history-row-main strong { font-size: 1rem; font-weight: 600; overflow-wrap: anywhere; }
 .history-row-main small { color: var(--text-secondary); font-size: .8125rem; }
 .history-row-action { margin-left: auto; flex: none; color: var(--accent-light); font-size: .8125rem; font-weight: 600; }
-.history-row-action span { font-size: 1.2rem; margin-left: 7px; vertical-align: -1px; }
 .history-state { min-height: 260px; padding: 36px; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 12px; text-align: center; }
 .history-state h2 { font-size: 1.35rem; }
 .history-state p { color: var(--text-secondary); max-width: 360px; }
 .history-state .btn { margin-top: 6px; }
 .history-empty-icon { color: var(--accent-light); font-size: 2.5rem; line-height: 1; }
-@media (max-width: 650px) { .history-screen { padding: 32px 18px 64px; } .history-header { display: block; margin-bottom: 24px; } .history-export { margin-top: 20px; } .history-toolbar { align-items: stretch; flex-direction: column; } .history-sort { justify-content: space-between; } .history-row { padding: 15px; gap: 12px; } .history-row-action { font-size: 0; } .history-row-action span { font-size: 1.25rem; } }
+@media (max-width: 650px) { .history-screen { padding: 32px 18px 64px; } .history-header { display: block; margin-bottom: 24px; } .history-export { margin-top: 20px; } .history-toolbar { align-items: stretch; flex-direction: column; } .history-sort { justify-content: space-between; } .history-row { padding: 15px; gap: 12px; } .history-row-action { font-size: .75rem; text-align: right; white-space: normal; } }
