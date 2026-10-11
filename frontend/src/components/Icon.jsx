@@ -18,6 +18,7 @@ const paths = {
   search: <><circle cx="11" cy="11" r="7" /><path d="m20 20-4-4" /></>,
   close: <path d="M5 5l14 14M19 5 5 19" />,
   target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" fill="currentColor" /></>,
+  play: <><rect x="2" y="4" width="20" height="16" rx="4" /><path d="m10 8 6 4-6 4z" /></>,
 };
 
 export default function Icon({ name, size = 20, className = '' }) {

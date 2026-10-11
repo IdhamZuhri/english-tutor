@@ -5,6 +5,7 @@ import SummaryScreen from './components/SummaryScreen.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import HistoryScreen from './components/HistoryScreen.jsx';
 import PracticeScreen from './components/PracticeScreen.jsx';
+import ChannelsScreen from './components/ChannelsScreen.jsx';
 import { validPersona } from './personas.js';
 
 /**
@@ -91,6 +92,8 @@ export default function App() {
         {screen === 'practice' && (
           <PracticeScreen onStartSpeaking={handleFocusedStart} />
         )}
+
+        {screen === 'channels' && <ChannelsScreen />}
 
       {screen === 'session' && (
         <ChatScreen
