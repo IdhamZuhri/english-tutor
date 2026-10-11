@@ -40,6 +40,17 @@ test('local server serves the app and persists a conversation', async () => {
     assert.equal(chat.transcript, 'I go to school yesterday.');
     assert.equal(chat.corrections.corrected_sentence, 'I went to school yesterday.');
 
+    const practice = await (await realFetch(`${base}/api/practice`)).json();
+    assert.equal(practice.turnCount, 1);
+    assert.equal(practice.areas.find(area => area.category === 'Grammar').count, 1);
+    assert.equal(practice.exercises[0].corrected, 'went');
+    const attempt = await realFetch(`${base}/api/practice/attempts`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: opening.session_id, category: 'Grammar', correct: true }),
+    });
+    assert.equal(attempt.status, 201);
+    assert.equal((await (await realFetch(`${base}/api/practice`)).json()).attempts.length, 1);
+
     const sessions = await (await realFetch(`${base}/api/sessions`)).json();
     assert.equal(sessions.length, 1);
     const detail = await (await realFetch(`${base}/api/sessions/1`)).json();
@@ -48,6 +59,7 @@ test('local server serves the app and persists a conversation', async () => {
     assert.match(exported.markdown, /I go to school yesterday/);
     const saved = JSON.parse(await readFile(dataFile, 'utf8'));
     assert.equal(saved.sessions[0].history.length, 3);
+    assert.equal(saved.practiceAttempts.length, 1);
   } finally {
     globalThis.fetch = realFetch;
     await new Promise(resolve => server.close(resolve));

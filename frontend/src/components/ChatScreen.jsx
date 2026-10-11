@@ -4,8 +4,9 @@ import { useSession } from '../hooks/useSession.js';
 import ChatBubble from './ChatBubble.jsx';
 import MicButton from './MicButton.jsx';
 import SessionTimer from './SessionTimer.jsx';
+import Icon from './Icon.jsx';
 
-export default function ChatScreen({ topic, durationSecs, onSessionEnd, onExit }) {
+export default function ChatScreen({ topic, durationSecs, focus, onSessionEnd, onExit }) {
   const { isRecording, micError, startRecording, stopRecording } = useAudioRecorder();
   const chatBottomRef = useRef(null);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -19,7 +20,7 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd, onExit }
     isInitializing,
     processTurn,
     endSession,
-  } = useSession({ topic, durationSecs, onSessionEnd });
+  } = useSession({ topic, durationSecs, focus, onSessionEnd });
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -73,7 +74,7 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd, onExit }
       {/* Header bar */}
       <header className="chat-header">
         <div className="chat-header-left">
-          <span className="chat-logo">🎙️</span>
+          <span className="chat-logo"><Icon name="mic" size={24} /></span>
           <div className="chat-meta">
             <span className="chat-title">SpeakWell</span>
             <span className="chat-topic">{topic}</span>
@@ -125,7 +126,7 @@ export default function ChatScreen({ topic, durationSecs, onSessionEnd, onExit }
       {/* Mic permission error */}
       {micError && (
         <div className="mic-error-banner" role="alert">
-          <span>🎙️</span>
+          <Icon name="mic" size={20} />
           <span>{micError}</span>
         </div>
       )}

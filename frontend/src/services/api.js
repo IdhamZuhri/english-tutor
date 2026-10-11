@@ -11,11 +11,29 @@ export async function healthCheck() {
 }
 
 /** Fetch the companion's opening message for a new session. */
-export async function fetchOpeningMessage(topic) {
-  const res = await fetch(`${BASE}/opening?topic=${encodeURIComponent(topic)}`);
+export async function fetchOpeningMessage(topic, focus = null) {
+  const params = new URLSearchParams({ topic });
+  if (focus) params.set('focus', focus);
+  const res = await fetch(`${BASE}/opening?${params}`);
   if (!res.ok) throw new Error(`Opening message failed: ${res.status}`);
   return res.json();
   // Returns: { reply_text, reply_audio_b64, tts_fallback }
+}
+
+export async function fetchPracticeInsights() {
+  const res = await fetch(`${BASE}/practice`);
+  if (!res.ok) throw new Error(`Could not load practice insights: ${res.status}`);
+  return res.json();
+}
+
+export async function savePracticeAttempt(attempt) {
+  const res = await fetch(`${BASE}/practice/attempts`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(attempt),
+  });
+  if (!res.ok) throw new Error(`Could not save practice result: ${res.status}`);
+  return res.json();
 }
 
 /**

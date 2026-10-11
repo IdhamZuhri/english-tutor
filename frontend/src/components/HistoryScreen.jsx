@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { fetchPastSessions, exportHistory } from '../services/api.js';
 import './HistoryScreen.css';
+import Icon from './Icon.jsx';
 
 const timestamp = session => {
   const value = new Date(session.created_at).getTime();
@@ -81,10 +82,12 @@ export default function HistoryScreen({ onViewHistory }) {
 
       {!loading && !error && sessions.length > 0 && (
         <div className="history-toolbar">
-          <label className="history-search">
-            <span className="sr-only">Search sessions by topic</span>
-            <input type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search topics" />
-          </label>
+          <div className="history-search">
+            <label className="sr-only" htmlFor="history-search-input">Search sessions by topic</label>
+            <Icon name="search" size={20} />
+            <input id="history-search-input" type="search" value={query} onChange={event => setQuery(event.target.value)} placeholder="Search topics" />
+            {query && <button type="button" className="history-search-clear" onClick={() => setQuery('')} aria-label="Clear topic search"><Icon name="close" size={16} /></button>}
+          </div>
           <label className="history-sort">
             <span>Sort</span>
             <select value={sort} onChange={event => setSort(event.target.value)}>
@@ -98,7 +101,7 @@ export default function HistoryScreen({ onViewHistory }) {
       <section className="history-content" aria-live="polite">
         {loading ? <div className="history-state glass-card"><div className="spinner" /><p>Loading your sessions…</p></div>
           : error ? <div className="history-state glass-card"><h2>History unavailable</h2><p>{error}</p><button className="btn btn-secondary" onClick={loadSessions}>Try again</button></div>
-          : sessions.length === 0 ? <div className="history-state glass-card"><div className="history-empty-icon" aria-hidden="true">✦</div><h2>Your story starts here</h2><p>Your conversations will appear here after your first practice session.</p></div>
+          : sessions.length === 0 ? <div className="history-state glass-card"><div className="history-empty-icon"><Icon name="history" size={40} /></div><h2>Your story starts here</h2><p>Your conversations will appear here after your first practice session.</p></div>
           : groups.length === 0 ? <div className="history-state glass-card"><h2>No matching sessions</h2><p>Try another topic or clear your search.</p><button className="btn btn-secondary" onClick={() => setQuery('')}>Clear search</button></div>
           : <>
               <p className="history-count">{groups.reduce((count, [, items]) => count + items.length, 0)} of {sessions.length} {sessions.length === 1 ? 'session' : 'sessions'}</p>
@@ -110,7 +113,7 @@ export default function HistoryScreen({ onViewHistory }) {
                       const date = new Date(session.created_at);
                       const validDate = !Number.isNaN(date.getTime());
                       return <button type="button" className="history-row glass-card" key={session.id} onClick={() => onViewHistory(session.id)} aria-label={`View ${session.topic || 'Untitled session'} session${validDate ? ` from ${date.toLocaleDateString()}` : ''}`}>
-                        <span className="history-row-icon" aria-hidden="true">✦</span>
+                        <span className="history-row-icon"><Icon name="chat" size={21} /></span>
                         <span className="history-row-main"><strong>{session.topic || 'Untitled session'}</strong><small>{validDate ? date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) : 'Date unknown'}</small></span>
                         <span className="history-row-action" aria-hidden="true">View conversation <span>→</span></span>
                       </button>;

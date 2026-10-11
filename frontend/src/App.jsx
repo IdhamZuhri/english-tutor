@@ -4,6 +4,7 @@ import ChatScreen from './components/ChatScreen.jsx';
 import SummaryScreen from './components/SummaryScreen.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import HistoryScreen from './components/HistoryScreen.jsx';
+import PracticeScreen from './components/PracticeScreen.jsx';
 
 /**
  * App — top-level screen router.
@@ -17,6 +18,7 @@ export default function App() {
   const [sessionConfig, setSessionConfig] = useState({
     topic: '',
     durationSecs: 300,
+    focus: null,
   });
 
   // Conversation history — accumulated during session, used for analysis
@@ -24,7 +26,15 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null);
 
   const handleStart = ({ topic, durationSecs }) => {
-    setSessionConfig({ topic, durationSecs });
+    setSessionConfig({ topic, durationSecs, focus: null });
+    setHistory([]);
+    setSessionId(null);
+    setIsHistoryView(false);
+    setScreen('session');
+  };
+
+  const handleFocusedStart = ({ topic, focus }) => {
+    setSessionConfig({ topic, durationSecs: 300, focus });
     setHistory([]);
     setSessionId(null);
     setIsHistoryView(false);
@@ -46,15 +56,11 @@ export default function App() {
 
   const handleRestart = () => {
     setHistory([]);
-    setScreen('setup');
+    setScreen(!isHistoryView && sessionConfig.focus ? 'practice' : 'setup');
   };
 
   const handleTabChange = (tabId) => {
-    if (tabId === 'history') {
-      setScreen('history');
-    } else {
-      setScreen('setup');
-    }
+    setScreen(tabId);
   };
 
   return (
@@ -70,10 +76,15 @@ export default function App() {
           <HistoryScreen onViewHistory={handleViewHistory} />
         )}
 
+        {screen === 'practice' && (
+          <PracticeScreen onStartSpeaking={handleFocusedStart} />
+        )}
+
       {screen === 'session' && (
         <ChatScreen
           topic={sessionConfig.topic}
           durationSecs={sessionConfig.durationSecs}
+          focus={sessionConfig.focus}
           onSessionEnd={handleSessionEnd}
           onExit={handleRestart}
         />
@@ -86,6 +97,7 @@ export default function App() {
             isHistoryView={isHistoryView}
             topic={sessionConfig.topic}
             durationSecs={sessionConfig.durationSecs}
+            focus={sessionConfig.focus}
             onRestart={handleRestart}
           />
         )}

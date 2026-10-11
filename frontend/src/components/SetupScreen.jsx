@@ -1,14 +1,15 @@
 import { useState } from 'react';
+import Icon from './Icon.jsx';
 
 const TOPICS = [
-  { id: 'travel',       label: 'Travel',           emoji: '✈️',  desc: 'Trips, destinations, adventures' },
-  { id: 'job',          label: 'Job Interview',     emoji: '💼',  desc: 'Career, skills, work experience' },
-  { id: 'daily',        label: 'Daily Life',        emoji: '☀️',  desc: 'Routines, habits, lifestyle' },
-  { id: 'hobbies',      label: 'Hobbies',           emoji: '🎨',  desc: 'Passions, interests, pastimes' },
-  { id: 'food',         label: 'Food & Dining',     emoji: '🍽️',  desc: 'Cuisine, restaurants, recipes' },
-  { id: 'technology',   label: 'Technology',        emoji: '💻',  desc: 'Gadgets, AI, the digital world' },
-  { id: 'smalltalk',    label: 'Small Talk',        emoji: '💬',  desc: 'Weather, news, casual chat' },
-  { id: 'business',     label: 'Business English',  emoji: '📊',  desc: 'Meetings, presentations, networking' },
+  { id: 'travel',       label: 'Travel',           icon: 'plane',  desc: 'Trips, destinations, adventures' },
+  { id: 'job',          label: 'Job Interview',     icon: 'briefcase',  desc: 'Career, skills, work experience' },
+  { id: 'daily',        label: 'Daily Life',        icon: 'sun',  desc: 'Routines, habits, lifestyle' },
+  { id: 'hobbies',      label: 'Hobbies',           icon: 'palette',  desc: 'Passions, interests, pastimes' },
+  { id: 'food',         label: 'Food & Dining',     icon: 'dining',  desc: 'Cuisine, restaurants, recipes' },
+  { id: 'technology',   label: 'Technology',        icon: 'laptop',  desc: 'Gadgets, AI, the digital world' },
+  { id: 'smalltalk',    label: 'Small Talk',        icon: 'chat',  desc: 'Weather, news, casual chat' },
+  { id: 'business',     label: 'Business English',  icon: 'chart',  desc: 'Meetings, presentations, networking' },
 ];
 
 export default function SetupScreen({ onStart }) {
@@ -32,7 +33,7 @@ export default function SetupScreen({ onStart }) {
     <div className="setup-screen">
       {/* Hero */}
       <header className="setup-hero">
-        <div className="setup-logo">🎙️</div>
+        <div className="setup-logo"><Icon name="mic" size={48} /></div>
         <h1 className="gradient-text">SpeakWell</h1>
         <p className="setup-subtitle">
           Your personal AI English speaking companion.<br />
@@ -49,7 +50,8 @@ export default function SetupScreen({ onStart }) {
             className={`btn btn-ghost btn-sm ${useCustom ? 'active-toggle' : ''}`}
             onClick={() => { setUseCustom(v => !v); setSelectedTopic(null); }}
           >
-            {useCustom ? '← Browse topics' : '✏️ Custom topic'}
+            <Icon name={useCustom ? 'arrowLeft' : 'edit'} size={16} />
+            {useCustom ? 'Browse topics' : 'Custom topic'}
           </button>
         </div>
 
@@ -79,11 +81,11 @@ export default function SetupScreen({ onStart }) {
                 className={`topic-card glass-card glass-card-hover ${selectedTopic === topic.id ? 'topic-card--selected' : ''}`}
                 onClick={() => setSelectedTopic(topic.id)}
               >
-                <span className="topic-emoji">{topic.emoji}</span>
+                <span className="topic-icon"><Icon name={topic.icon} size={25} /></span>
                 <span className="topic-label">{topic.label}</span>
                 <span className="topic-desc">{topic.desc}</span>
                 {selectedTopic === topic.id && (
-                  <span className="topic-check">✓</span>
+                  <span className="topic-check"><Icon name="check" size={16} /></span>
                 )}
               </button>
             ))}
@@ -134,7 +136,7 @@ export default function SetupScreen({ onStart }) {
           disabled={!canStart}
           onClick={handleStart}
         >
-          <span className="btn-icon">🎙️</span>
+          <span className="btn-icon"><Icon name="mic" size={20} /></span>
           Start Conversation
         </button>
       </div>
@@ -163,7 +165,7 @@ export default function SetupScreen({ onStart }) {
           gap: 12px;
         }
         .setup-logo {
-          font-size: 3.5rem;
+          color: var(--accent-light);
           filter: drop-shadow(0 0 24px rgba(124,58,237,0.5));
           animation: float 3s ease-in-out infinite;
         }
@@ -234,9 +236,11 @@ export default function SetupScreen({ onStart }) {
           border-color: var(--accent-border) !important;
           box-shadow: 0 0 20px var(--accent-glow) !important;
         }
-        .topic-emoji {
-          font-size: 1.75rem;
-          line-height: 1;
+        .topic-icon {
+          color: var(--accent-light);
+          display: inline-flex;
+          align-items: center;
+          margin-bottom: 3px;
         }
         .topic-label {
           font-weight: 600;
@@ -337,7 +341,7 @@ export default function SetupScreen({ onStart }) {
         .start-btn:not(:disabled):hover {
           box-shadow: 0 12px 40px rgba(124,58,237,0.55), 0 0 80px rgba(124,58,237,0.15);
         }
-        .btn-icon { font-size: 1.125rem; }
+        .btn-icon { display: inline-flex; align-items: center; }
       `}</style>
     </div>
   );

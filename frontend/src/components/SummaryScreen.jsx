@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
 import { fetchSessionDetails } from '../services/api.js';
 import ChatBubble from './ChatBubble.jsx';
+import Icon from './Icon.jsx';
 
-export default function SummaryScreen({ history, sessionId, isHistoryView, topic, onRestart }) {
+export default function SummaryScreen({ history, sessionId, isHistoryView, topic, focus, onRestart }) {
   const [loading, setLoading] = useState(isHistoryView);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -32,7 +33,7 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
       {/* Header */}
       <header className="summary-header">
         <div className="summary-title-wrap">
-          <div className="summary-icon">🏆</div>
+          <div className="summary-icon"><Icon name={isHistoryView ? 'history' : 'award'} size={42} /></div>
           <div>
             <h1 className="gradient-text">{isHistoryView ? "Session History" : "Session Complete"}</h1>
             <p className="summary-meta">
@@ -41,7 +42,7 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
           </div>
         </div>
         <button id="new-session-btn" className="btn btn-primary" onClick={onRestart}>
-          {isHistoryView ? "Back to Home" : "Start New Session"}
+          {isHistoryView ? "Back to Home" : focus ? "Back to My Practice" : "Start New Session"}
         </button>
       </header>
 
@@ -52,7 +53,7 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
         </div>
       ) : error ? (
         <div className="summary-error glass-card animate-in">
-          <span>⚠️</span>
+          <Icon name="alert" size={32} />
           <p>Details unavailable: {error}</p>
           <button className="btn btn-secondary btn-sm" onClick={onRestart}>
             Start Over
@@ -106,8 +107,8 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
           gap: 16px;
         }
         .summary-icon {
-          font-size: 3rem;
-          filter: drop-shadow(0 0 16px rgba(251,191,36,0.4));
+          color: var(--accent-light);
+          filter: drop-shadow(0 0 16px var(--accent-glow));
           animation: float 3s ease-in-out infinite;
         }
         @keyframes float {

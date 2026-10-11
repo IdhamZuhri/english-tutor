@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Icon from './Icon.jsx';
 
 /**
  * ChatBubble — displays a user or assistant message.
@@ -34,7 +35,7 @@ export default function ChatBubble({ message }) {
               onClick={() => setShowCorrections(v => !v)}
               aria-expanded={showCorrections}
             >
-              <span className="correction-icon">✏️</span>
+              <span className="correction-icon"><Icon name="edit" size={15} /></span>
               <span>{corrections.corrections.length} correction{corrections.corrections.length > 1 ? 's' : ''}</span>
               <span className="correction-chevron">{showCorrections ? '▴' : '▾'}</span>
             </button>
@@ -64,7 +65,7 @@ export default function ChatBubble({ message }) {
 
         {/* "No corrections" subtle note */}
         {isUser && corrections && !hasCorrections && (
-          <p className="no-corrections animate-in">✓ No corrections</p>
+          <p className="no-corrections animate-in"><Icon name="check" size={14} /> No corrections</p>
         )}
       </div>
     </div>
@@ -99,7 +100,7 @@ const BUBBLE_STYLES = `
   .correction-panel { background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.2); border-radius: var(--radius-md); overflow: hidden; font-size: 0.8125rem; }
   .correction-toggle { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none; color: var(--accent-light); font-size: 0.8125rem; font-family: var(--font-sans); font-weight: 500; padding: 8px 12px; cursor: pointer; text-align: left; transition: background var(--transition-fast); }
   .correction-toggle:hover { background: rgba(124,58,237,0.1); }
-  .correction-icon    { font-size: 0.875rem; }
+  .correction-icon    { display: inline-flex; align-items: center; }
   .correction-chevron { margin-left: auto; font-size: 0.625rem; opacity: 0.7; }
   .correction-body  { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(124,58,237,0.15); }
   .correction-full  { color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.5; }
@@ -110,7 +111,7 @@ const BUBBLE_STYLES = `
   .correction-arrow { color: var(--text-muted); font-size: 0.75rem; }
   .correction-fixed { color: #6ee7b7; font-weight: 600; font-size: 0.8125rem; }
   .correction-note  { color: var(--text-muted); font-size: 0.75rem; font-style: italic; }
-  .no-corrections   { color: var(--color-success); font-size: 0.75rem; padding-left: 4px; opacity: 0.75; }
+  .no-corrections   { display: inline-flex; align-items: center; gap: 4px; color: var(--color-success); font-size: 0.75rem; padding-left: 4px; opacity: 0.75; }
 `;
 
 if (typeof document !== 'undefined' && !document.head.querySelector('[data-sw-bubble]')) {

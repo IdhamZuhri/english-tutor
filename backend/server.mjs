@@ -2,6 +2,7 @@ import http from 'node:http';
 import { readFile, mkdir, writeFile, rename, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { practiceInsights } from './practice.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -28,9 +29,10 @@ let store;
 try {
   store = JSON.parse(await readFile(dataFile, 'utf8'));
   if (!Array.isArray(store.sessions)) throw new Error('Invalid session store');
+  if (!Array.isArray(store.practiceAttempts)) store.practiceAttempts = [];
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;
-  store = { nextId: 1, sessions: [] };
+  store = { nextId: 1, sessions: [], practiceAttempts: [] };
 }
 
 let saveChain = Promise.resolve();
@@ -110,8 +112,11 @@ async function api(req, res, pathname, searchParams) {
   }
   if (pathname === '/api/opening' && req.method === 'GET') {
     const topic = (searchParams.get('topic') || 'Small Talk').slice(0, 80);
-    const reply = await complete([{ role: 'user', content: `You are Alex, a warm English conversation partner. Start a natural conversation about ${topic}. Write one brief greeting and one engaging question. Maximum two sentences.` }]);
-    const session = { id: store.nextId++, topic, created_at: new Date().toISOString(), history: [{ role: 'assistant', content: reply }], summary: null, scores: null, filler_count: null, justifications: null };
+    const focus = ['Grammar', 'Sentence structure', 'Vocabulary'].includes(searchParams.get('focus')) ? searchParams.get('focus') : null;
+    const reply = await complete([{ role: 'user', content: focus
+      ? `You are Alex, an English speaking coach. Start a realistic conversation about ${topic} that lets the learner practice ${focus.toLowerCase()}. Ask one specific, open-ended question. Do not give a lecture or correction. Maximum two sentences.`
+      : `You are Alex, a warm English conversation partner. Start a natural conversation about ${topic}. Write one brief greeting and one engaging question. Maximum two sentences.` }]);
+    const session = { id: store.nextId++, topic, focus, created_at: new Date().toISOString(), history: [{ role: 'assistant', content: reply }], summary: null, scores: null, filler_count: null, justifications: null };
     store.sessions.push(session);
     await save();
     return json(res, 200, { session_id: session.id, reply_text: reply, reply_audio_b64: null, tts_fallback: false });
@@ -131,8 +136,10 @@ async function api(req, res, pathname, searchParams) {
     if (!transcript || transcript.split(/\s+/).length < 2) return json(res, 200, { error: 'empty', message: "I didn't catch that. Please try again." });
     const history = safeMessages(session.history);
     const [reply, rawCorrections] = await Promise.all([
-      complete([{ role: 'system', content: `You are Alex, a warm English conversation partner. Discuss ${session.topic}. Reply naturally in one or two short sentences and end with a question. Never speak grammar corrections aloud.` }, ...history, { role: 'user', content: transcript }]),
-      complete([{ role: 'user', content: `Analyze this learner sentence for clear grammar errors: ${JSON.stringify(transcript)}. Return JSON with has_corrections (boolean), corrected_sentence (string), and corrections (array of objects with original, corrected, explanation). Do not change informal style or word preference.` }], true),
+      complete([{ role: 'system', content: session.focus
+        ? `You are Alex, an English speaking coach. Discuss ${session.topic}. Help the learner practice ${session.focus.toLowerCase()} through natural follow-up questions. Reply in one or two short sentences. Do not speak corrections aloud.`
+        : `You are Alex, a warm English conversation partner. Discuss ${session.topic}. Reply naturally in one or two short sentences and end with a question. Never speak grammar corrections aloud.` }, ...history, { role: 'user', content: transcript }]),
+      complete([{ role: 'user', content: `Analyze this learner's spoken sentence, transcribed to text: ${JSON.stringify(transcript)}. Return JSON with has_corrections (boolean), corrected_sentence (string), and corrections (array of objects with original, corrected, explanation, category). Category must be Grammar, Sentence structure, or Vocabulary. Include only clear grammar, structure, or word-choice errors. Do not change informal style or personal word preference. Do not assess pronunciation or fluency from text.` }], true),
     ]);
     const corrections = {
       has_corrections: Boolean(rawCorrections.has_corrections),
@@ -145,6 +152,19 @@ async function api(req, res, pathname, searchParams) {
   }
   if (pathname === '/api/sessions' && req.method === 'GET') {
     return json(res, 200, store.sessions.slice().reverse().map(s => ({ id: s.id, topic: s.topic, created_at: s.created_at, grammar_score: s.scores?.grammar ?? null, fluency_score: s.scores?.fluency ?? null, vocabulary_score: s.scores?.vocabulary ?? null, pronunciation_score: s.scores?.pronunciation ?? null })));
+  }
+  if (pathname === '/api/practice' && req.method === 'GET') {
+    return json(res, 200, practiceInsights(store.sessions, store.practiceAttempts));
+  }
+  if (pathname === '/api/practice/attempts' && req.method === 'POST') {
+    const attempt = JSON.parse((await bodyBytes(req, 10_000)).toString('utf8'));
+    if (!Number.isInteger(attempt.sessionId) || !store.sessions.some(session => session.id === attempt.sessionId) ||
+        !['Grammar', 'Sentence structure', 'Vocabulary'].includes(attempt.category) || typeof attempt.correct !== 'boolean') {
+      return json(res, 400, { detail: 'Invalid practice attempt' });
+    }
+    store.practiceAttempts.push({ sessionId: attempt.sessionId, category: attempt.category, correct: attempt.correct, created_at: new Date().toISOString() });
+    await save();
+    return json(res, 201, { saved: true });
   }
   const sessionMatch = pathname.match(/^\/api\/sessions\/(\d+)$/);
   if (sessionMatch && req.method === 'GET') {
