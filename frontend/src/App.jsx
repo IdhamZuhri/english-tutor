@@ -6,6 +6,7 @@ import Sidebar from './components/Sidebar.jsx';
 import HistoryScreen from './components/HistoryScreen.jsx';
 import PracticeScreen from './components/PracticeScreen.jsx';
 import ChannelsScreen from './components/ChannelsScreen.jsx';
+import LessonsScreen from './components/LessonsScreen.jsx';
 import { validPersona } from './personas.js';
 
 /**
@@ -94,6 +95,8 @@ export default function App() {
         )}
 
         {screen === 'channels' && <ChannelsScreen />}
+
+        {screen === 'lessons' && <LessonsScreen />}
 
       {screen === 'session' && (
         <ChatScreen

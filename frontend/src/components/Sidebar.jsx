@@ -18,6 +18,7 @@ export default function Sidebar({ activeTab, onTabChange }) {
     { id: 'history', label: 'History', icon: 'history' },
     { id: 'practice', label: 'My Practice', icon: 'target' },
     { id: 'channels', label: 'Channels', icon: 'play' },
+    { id: 'lessons', label: 'English Notes', icon: 'book' },
   ];
 
   return (

@@ -19,6 +19,7 @@ const paths = {
   close: <path d="M5 5l14 14M19 5 5 19" />,
   target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" fill="currentColor" /></>,
   play: <><rect x="2" y="4" width="20" height="16" rx="4" /><path d="m10 8 6 4-6 4z" /></>,
+  book: <><path d="M12 6c-2-2-5-2-9-2v15c4 0 7 0 9 2 2-2 5-2 9-2V4c-4 0-7 0-9 2Z" /><path d="M12 6v15" /></>,
 };
 
 export default function Icon({ name, size = 20, className = '' }) {
