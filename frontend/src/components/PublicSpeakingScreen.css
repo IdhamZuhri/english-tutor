@@ -78,6 +78,7 @@
 .speech-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 10px; margin: 26px 0 12px; }
 .speech-review > small, .speech-result-hero > small { color: var(--text-secondary); }
 .speech-result-hero { padding: 30px; background: linear-gradient(120deg, rgba(124,58,237,.17), rgba(56,189,248,.04)); }
+.speech-history-back { display: inline-flex; align-items: center; margin: 0 0 17px; padding: 5px 0; border: 0; background: transparent; color: var(--accent-light); font: inherit; font-size: .84rem; font-weight: 700; cursor: pointer; }
 .speech-result-hero h2 { margin: 10px 0; font-size: clamp(1.5rem, 3vw, 2.15rem); }
 .speech-result-hero > p { color: var(--text-secondary); }
 .speech-metrics { display: flex; gap: 32px; flex-wrap: wrap; margin: 27px 0 12px; }

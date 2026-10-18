@@ -7,7 +7,7 @@ const explore = [
   { id: 'practice', title: 'My Practice', description: 'Turn your conversation corrections into focused exercises.', icon: 'target', action: 'Work on my skills' },
   { id: 'channels', title: 'Channels', description: 'Find videos and listening ideas for a fresh spark.', icon: 'play', action: 'Explore channels' },
   { id: 'lessons', title: 'English Notes', description: 'Refresh a useful English concept before you speak.', icon: 'book', action: 'Browse notes' },
-  { id: 'history', title: 'History', description: 'Look back at conversations and notice your progress.', icon: 'history', action: 'View history' },
+  { id: 'history', title: 'History', description: 'Find every conversation, rehearsal, and journal entry in one place.', icon: 'history', action: 'View history' },
 ];
 
 export default function HomeScreen({ onNavigate, onViewHistory, onViewSpeech, onViewJournal }) {

@@ -21,6 +21,8 @@ export default function App() {
   const [sessionSource, setSessionSource] = useState('conversation');
   const [selectedSpeechId, setSelectedSpeechId] = useState(null);
   const [selectedJournalId, setSelectedJournalId] = useState(null);
+  const [speechFromHistory, setSpeechFromHistory] = useState(false);
+  const [journalFromHistory, setJournalFromHistory] = useState(false);
   const [isHistoryView, setIsHistoryView] = useState(false);
   const [persona, setPersona] = useState(() => {
     try { return validPersona(localStorage.getItem('speakwell-persona')); }
@@ -82,18 +84,20 @@ export default function App() {
   };
 
   const handleTabChange = (tabId) => {
-    if (tabId === 'public-speaking') setSelectedSpeechId(null);
-    if (tabId === 'journal') setSelectedJournalId(null);
+    if (tabId === 'public-speaking') { setSelectedSpeechId(null); setSpeechFromHistory(false); }
+    if (tabId === 'journal') { setSelectedJournalId(null); setJournalFromHistory(false); }
     setScreen(tabId);
   };
 
-  const handleViewSpeech = id => {
+  const handleViewSpeech = (id, fromHistory = false) => {
     setSelectedSpeechId(id);
+    setSpeechFromHistory(fromHistory);
     setScreen('public-speaking');
   };
 
-  const handleViewJournal = id => {
+  const handleViewJournal = (id, fromHistory = false) => {
     setSelectedJournalId(id);
+    setJournalFromHistory(fromHistory);
     setScreen('journal');
   };
 
@@ -109,7 +113,7 @@ export default function App() {
         )}
 
         {screen === 'history' && (
-          <HistoryScreen onViewHistory={handleViewHistory} />
+          <HistoryScreen onViewHistory={handleViewHistory} onViewSpeech={id => handleViewSpeech(id, true)} onViewJournal={id => handleViewJournal(id, true)} onNavigate={handleTabChange} />
         )}
 
         {screen === 'practice' && (
@@ -120,8 +124,8 @@ export default function App() {
 
         {screen === 'lessons' && <LessonsScreen />}
 
-        {screen === 'public-speaking' && <PublicSpeakingScreen initialSpeechId={selectedSpeechId} />}
-        {screen === 'journal' && <JournalScreen initialEntryId={selectedJournalId} />}
+        {screen === 'public-speaking' && <PublicSpeakingScreen initialSpeechId={selectedSpeechId} onBackToHistory={speechFromHistory ? () => setScreen('history') : null} />}
+        {screen === 'journal' && <JournalScreen initialEntryId={selectedJournalId} onBackToHistory={journalFromHistory ? () => setScreen('history') : null} />}
 
       {screen === 'session' && (
         <ChatScreen

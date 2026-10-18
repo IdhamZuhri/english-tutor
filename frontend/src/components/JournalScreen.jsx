@@ -24,7 +24,7 @@ const modeOptions = [
 const dateLabel = value => new Date(value).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 const moodFor = id => moods.find(item => item.id === id) || moods[2];
 
-export default function JournalScreen({ initialEntryId = null }) {
+export default function JournalScreen({ initialEntryId = null, onBackToHistory = null }) {
   const [page, setPage] = useState('home');
   const [entries, setEntries] = useState([]);
   const [detail, setDetail] = useState(null);
@@ -190,7 +190,7 @@ export default function JournalScreen({ initialEntryId = null }) {
     </div>}
 
     {page === 'detail' && detail && <div className="journal-detail">
-      <button type="button" className="journal-back" onClick={() => { setPage('home'); setError(''); }}>← All entries</button>
+      <button type="button" className="journal-back" onClick={onBackToHistory || (() => { setPage('home'); setError(''); })}>{onBackToHistory ? '← Back to History' : '← All entries'}</button>
       <div className="journal-detail-head glass-card"><span className="journal-eyebrow">{dateLabel(detail.created_at)}</span><h2>{detail.title}</h2><div className="journal-detail-meta"><span>{moodFor(detail.mood).emoji} {moodFor(detail.mood).label}</span><span>{modeOptions.find(item => item.id === detail.mode)?.title}</span><span>{detail.responses.length} {detail.responses.length === 1 ? 'reflection' : 'reflections'}</span></div></div>
       <div className="journal-detail-responses">{detail.responses.map((item, index) => <section className="journal-detail-response glass-card" key={index}><span>REFLECTION {index + 1} · {item.source === 'written' ? 'WRITTEN' : 'SPOKEN'}</span><h3>{item.prompt}</h3><p>{item.transcript}</p>{item.audioUrl && <audio controls preload="none" src={item.audioUrl} aria-label={`Play recording for reflection ${index + 1}`} />}</section>)}</div>
       <section className="journal-grammar glass-card"><div><span className="journal-eyebrow">OPTIONAL LANGUAGE REVIEW</span><h2>Check my grammar</h2><p>Your reflection is yours first. Review the language only when you feel ready.</p></div>{!detail.grammar ? <button type="button" className="btn btn-secondary" disabled={busy} onClick={checkGrammar}>{busy ? 'Checking…' : 'Check grammar'}</button> : <div className="journal-grammar-result"><p>{detail.grammar.summary}</p>{detail.grammar.suggestions.length ? detail.grammar.suggestions.map((suggestion, index) => <div key={index} className="journal-suggestion"><small>REFLECTION {suggestion.responseIndex + 1}</small><p><del>{suggestion.original}</del><span aria-hidden="true">→</span><strong>{suggestion.improved}</strong></p><span>{suggestion.explanation}</span></div>) : <div className="journal-no-corrections"><Icon name="check" size={18} /> No clear grammar corrections found.</div>}</div>}</section>

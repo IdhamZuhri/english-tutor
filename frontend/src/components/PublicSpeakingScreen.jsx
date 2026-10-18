@@ -16,7 +16,7 @@ const formatTips = {
 };
 const formatTime = seconds => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 
-export default function PublicSpeakingScreen({ initialSpeechId = null }) {
+export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToHistory = null }) {
   const [step, setStep] = useState('prepare');
   const [format, setFormat] = useState('Presentation');
   const [title, setTitle] = useState('');
@@ -145,6 +145,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null }) {
 
     {step === 'review' && <section className="speech-review glass-card"><span className="speech-eyebrow">REHEARSAL COMPLETE</span><h2>You showed up and spoke.</h2><p>Listen back if you like, then get feedback on your words and structure.</p><div className="speech-review-meta"><span><Icon name="history" size={17} /> {formatTime(elapsed)} spoken</span><span><Icon name="mic" size={17} /> {title}</span></div>{audioUrl && <audio controls src={audioUrl} aria-label="Play your rehearsal recording" />}<div className="speech-actions"><button type="button" className="btn btn-secondary" onClick={reset}>Start over</button><button type="button" className="btn btn-primary" disabled={busy} onClick={getFeedback}>{busy ? 'Reviewing your speech…' : 'Get my feedback'}</button></div><small>Your recording stays in this browser until you leave this screen. Only the transcript and feedback are saved.</small></section>}
 
+    {step === 'result' && result && onBackToHistory && <button type="button" className="speech-history-back" onClick={onBackToHistory}>← Back to History</button>}
     {step === 'result' && result && <section className="speech-result"><div className="speech-result-hero glass-card"><span className="speech-eyebrow">YOUR REHEARSAL REVIEW</span><h2>{result.feedback.headline}</h2><p>{result.title} · {result.format} · {formatTime(result.durationSecs)}</p><div className="speech-metrics"><div><strong>{result.feedback.wordCount}</strong><span>words spoken</span></div><div><strong>{result.feedback.pace}</strong><span>words / min</span></div><div><strong>{result.feedback.fillerCount}</strong><span>possible filler words</span></div></div><small>Pace and filler counts are estimates from the transcript.</small></div><div className="speech-feedback-grid"><div className="glass-card"><span className="speech-eyebrow">WHAT WORKED</span>{result.feedback.strengths.length ? result.feedback.strengths.map((strength, index) => <p key={index}><Icon name="check" size={17} />{strength}</p>) : <p>You completed a full rehearsal and gave yourself something to build on.</p>}</div><div className="glass-card speech-next"><span className="speech-eyebrow">ONE THING TO TRY NEXT</span><h3>{result.feedback.nextStep}</h3>{result.feedback.openingSuggestion && <p><strong>Opening idea:</strong> “{result.feedback.openingSuggestion}”</p>}</div></div><details className="speech-transcript glass-card"><summary>Read your transcript</summary><p>{result.transcript}</p></details><div className="speech-actions"><button type="button" className="btn btn-secondary" onClick={reset}>Choose a new topic</button><button type="button" className="btn btn-primary" onClick={begin}><Icon name="mic" size={17} /> Rehearse again</button></div></section>}
   </div>;
 }

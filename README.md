@@ -1,6 +1,6 @@
 # SpeakWell
 
-SpeakWell is a local English speaking practice app. Home helps you choose between AI conversation, public speaking rehearsal, a voice journal, personalized practice, videos, notes, and history. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and feedback.
+SpeakWell is a local English speaking practice app. Home helps you choose between AI conversation, public speaking rehearsal, a daily journal, personalized practice, videos, notes, and history. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and feedback.
 
 ## Requirements
 
@@ -41,6 +41,10 @@ Open **Public Speaking** from the sidebar to rehearse a presentation, story, or 
 ## Daily journal
 
 Open **Daily Journal** to make a guided reflection, answer a few gentle follow-up questions, or journal freely. Write or record each response, and mix both in one entry. Choose a mood, review or edit your text, and save. Entries are organized by date; spoken responses include replayable audio. **Check grammar** is optional and runs only when selected. Journal text is saved in `backend/data/sessions.json` and recordings in `backend/data/journal-audio/`. Audio is sent to OpenAI only for transcription; journal text is sent for follow-up questions and optional grammar review.
+
+## History
+
+**History** combines conversations, public speaking rehearsals, and journal entries in one timeline. Filter by activity, search titles, and open an item to review it. Conversation transcripts can be exported as Markdown from the Conversations filter.
 
 ## Troubleshooting
 
