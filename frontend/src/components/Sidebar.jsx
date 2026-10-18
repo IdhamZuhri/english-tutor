@@ -17,6 +17,7 @@ export default function Sidebar({ activeTab, onTabChange }) {
     { id: 'home', label: 'Home', subtitle: 'Your starting point', icon: 'home' },
     { id: 'conversation', label: 'Conversation', subtitle: 'Everyday fluency', icon: 'chat' },
     { id: 'public-speaking', label: 'Public Speaking', subtitle: 'Speak with purpose', icon: 'podium' },
+    { id: 'journal', label: 'Daily Journal', subtitle: 'Write or speak', icon: 'journal' },
     { id: 'practice', label: 'My Practice', icon: 'target' },
     { id: 'channels', label: 'Channels', icon: 'play' },
     { id: 'lessons', label: 'English Notes', icon: 'book' },

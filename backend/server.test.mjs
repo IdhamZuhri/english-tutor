@@ -19,8 +19,10 @@ test('local server serves the app and persists a conversation', async () => {
     completionPrompts.push(request.messages);
     if (request.response_format) {
       const isSpeech = request.messages[0]?.content?.includes('public speaking coach');
+      const isJournalGrammar = request.messages[0]?.content?.includes('supportive English editor');
       return Response.json({ choices: [{ message: { content: JSON.stringify(isSpeech
         ? { headline: 'A clear first rehearsal.', strengths: ['Your opening introduces the topic.'], nextStep: 'Add one concrete example.', openingSuggestion: 'Let me tell you why this matters.' }
+        : isJournalGrammar ? { summary: 'One small past-tense fix may help.', suggestions: [{ responseIndex: 0, original: 'I go', improved: 'I went', explanation: 'Use past tense for yesterday.' }] }
         : { has_corrections: true, corrected_sentence: 'I went to school yesterday.', corrections: [{ original: 'go', corrected: 'went', explanation: 'Past tense' }] }) } }] });
     }
     return Response.json({ choices: [{ message: { content: 'What did you learn there?' } }] });
@@ -76,6 +78,51 @@ test('local server serves the app and persists a conversation', async () => {
     assert.equal((await (await realFetch(`${base}/api/speeches`)).json())[0].title, 'My first presentation');
     assert.equal((await (await realFetch(`${base}/api/speeches/${speech.id}`)).json()).transcript, 'I go to school yesterday.');
 
+    const journalAudio = new Blob([Buffer.alloc(9000)], { type: 'audio/webm' });
+    const transcriptionForm = new FormData();
+    transcriptionForm.append('audio', journalAudio, 'journal.webm');
+    const journalTranscript = await (await realFetch(`${base}/api/journal/transcribe`, { method: 'POST', body: transcriptionForm })).json();
+    assert.equal(journalTranscript.transcript, 'I go to school yesterday.');
+    const followUp = await (await realFetch(`${base}/api/journal/follow-up`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responses: [{ prompt: 'How was your day?', transcript: journalTranscript.transcript }] }) })).json();
+    assert.equal(followUp.question, 'What did you learn there?');
+    assert.ok(completionPrompts.some(messages => messages[0]?.content?.includes('gentle journaling companion')));
+    const journalForm = new FormData();
+    journalForm.append('entry', JSON.stringify({ title: 'Today at school', mood: 'good', mode: 'guided', responses: [{ prompt: 'What stood out?', transcript: journalTranscript.transcript }] }));
+    journalForm.append('audio0', journalAudio, 'journal.webm');
+    const journalResponse = await realFetch(`${base}/api/journal`, { method: 'POST', body: journalForm });
+    assert.equal(journalResponse.status, 201);
+    const journal = await journalResponse.json();
+    assert.equal(journal.grammar, null);
+    assert.equal(journal.responses[0].transcript, 'I go to school yesterday.');
+    assert.equal((await (await realFetch(`${base}${journal.responses[0].audioUrl}`)).arrayBuffer()).byteLength, 9000);
+    assert.equal((await (await realFetch(`${base}/api/journal`)).json())[0].mood, 'good');
+    const grammar = await (await realFetch(`${base}/api/journal/${journal.id}/grammar`, { method: 'POST' })).json();
+    assert.equal(grammar.grammar.suggestions[0].improved, 'I went');
+    assert.equal((await (await realFetch(`${base}/api/journal/${journal.id}`)).json()).grammar.suggestions.length, 1);
+    const writtenForm = new FormData();
+    writtenForm.append('entry', JSON.stringify({ title: 'A written reflection', mood: 'okay', mode: 'free', responses: [{ prompt: 'Your reflection', transcript: 'Today I took a quiet walk and felt calmer.' }] }));
+    const completionsBeforeWriting = completionPrompts.length;
+    const writtenResponse = await realFetch(`${base}/api/journal`, { method: 'POST', body: writtenForm });
+    assert.equal(writtenResponse.status, 201);
+    const written = await writtenResponse.json();
+    assert.equal(written.responses[0].source, 'written');
+    assert.equal(written.responses[0].audioUrl, null);
+    assert.equal(completionPrompts.length, completionsBeforeWriting);
+    assert.equal((await realFetch(`${base}/api/journal/${written.id}/audio/0`)).status, 404);
+    const mixedForm = new FormData();
+    mixedForm.append('entry', JSON.stringify({ title: 'A mixed reflection', mood: 'good', mode: 'guided', responses: [{ prompt: 'How do you feel?', transcript: 'I feel curious today.' }, { prompt: 'What stood out?', transcript: journalTranscript.transcript }] }));
+    mixedForm.append('audio1', journalAudio, 'journal.webm');
+    const mixedResponse = await realFetch(`${base}/api/journal`, { method: 'POST', body: mixedForm });
+    assert.equal(mixedResponse.status, 201);
+    const mixed = await mixedResponse.json();
+    assert.equal(mixed.responses[0].source, 'written');
+    assert.equal(mixed.responses[1].source, 'spoken');
+    assert.equal((await (await realFetch(`${base}${mixed.responses[1].audioUrl}`)).arrayBuffer()).byteLength, 9000);
+    const badJournalForm = new FormData();
+    badJournalForm.append('entry', JSON.stringify({ title: 'Bad entry', mood: 'unknown', mode: 'free', responses: [{ prompt: 'Reflection', transcript: 'Hello world' }] }));
+    badJournalForm.append('audio0', journalAudio, 'journal.webm');
+    assert.equal((await realFetch(`${base}/api/journal`, { method: 'POST', body: badJournalForm })).status, 400);
+
     const sessions = await (await realFetch(`${base}/api/sessions`)).json();
     assert.equal(sessions.length, 1);
     assert.equal(sessions[0].persona, 'chill');
@@ -88,6 +135,8 @@ test('local server serves the app and persists a conversation', async () => {
     assert.equal(saved.sessions[0].history.length, 3);
     assert.equal(saved.practiceAttempts.length, 1);
     assert.equal(saved.speeches.length, 1);
+    assert.equal(saved.journalEntries.length, 3);
+    assert.equal(saved.journalEntries[0].grammar.suggestions.length, 1);
   } finally {
     globalThis.fetch = realFetch;
     await new Promise(resolve => server.close(resolve));

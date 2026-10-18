@@ -176,6 +176,8 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .sidebar-btn {
@@ -231,13 +233,17 @@ body {
 .sidebar-btn--conversation .sidebar-icon { width: 35px; height: 35px; flex: none; display: grid; place-items: center; border-radius: 11px; color: #d9c9ff; background: rgba(124,58,237,.21); }
 .sidebar-btn.sidebar-btn--conversation:hover, .sidebar-btn.sidebar-btn--conversation.active { border-color: rgba(167,139,250,.55); background: linear-gradient(100deg, rgba(124,58,237,.29), rgba(124,58,237,.09)); color: #f1eaff; }
 .sidebar-btn--conversation.active .sidebar-icon { background: rgba(124,58,237,.37); }
-.sidebar-btn.sidebar-btn--public-speaking { margin-bottom: 8px; border-color: rgba(45,190,200,.17); background: linear-gradient(100deg, rgba(14,165,177,.12), rgba(56,189,248,.035)); color: #b8f7fa; }
+.sidebar-btn.sidebar-btn--public-speaking { border-color: rgba(45,190,200,.17); background: linear-gradient(100deg, rgba(14,165,177,.12), rgba(56,189,248,.035)); color: #b8f7fa; }
 .sidebar-btn--public-speaking .sidebar-icon { width: 35px; height: 35px; flex: none; display: grid; place-items: center; border-radius: 11px; color: #a8edf3; background: rgba(14,165,177,.19); }
 .sidebar-btn.sidebar-btn--public-speaking:hover, .sidebar-btn.sidebar-btn--public-speaking.active { border-color: rgba(91,216,224,.52); background: linear-gradient(100deg, rgba(14,165,177,.27), rgba(56,189,248,.1)); color: #e1feff; }
 .sidebar-btn--public-speaking.active .sidebar-icon { background: rgba(14,165,177,.33); }
+.sidebar-btn.sidebar-btn--journal { min-height: 62px; margin-bottom: 8px; padding-inline: 11px; border-color: rgba(244,188,138,.18); border-radius: 14px; background: linear-gradient(100deg, rgba(215,125,79,.15), rgba(244,188,138,.035)); color: #f4bc8a; }
+.sidebar-btn--journal .sidebar-icon { width: 35px; height: 35px; flex: none; display: grid; place-items: center; border-radius: 11px; color: #ffd5ad; background: rgba(244,188,138,.14); }
+.sidebar-btn.sidebar-btn--journal:hover, .sidebar-btn.sidebar-btn--journal.active { border-color: rgba(244,188,138,.55); background: linear-gradient(100deg, rgba(215,125,79,.28), rgba(244,188,138,.1)); color: #fff0df; }
+.sidebar-btn--journal.active .sidebar-icon { background: rgba(244,188,138,.23); }
 .sidebar-btn--conversation.active .sidebar-copy small { color: #d0bcff; }
 .sidebar-btn--public-speaking.active .sidebar-copy small { color: #a8edf3; }
-.sidebar--collapsed .sidebar-btn.sidebar-btn--home, .sidebar--collapsed .sidebar-btn.sidebar-btn--conversation, .sidebar--collapsed .sidebar-btn.sidebar-btn--public-speaking { min-height: 54px; padding-inline: 0; }
+.sidebar--collapsed .sidebar-btn.sidebar-btn--home, .sidebar--collapsed .sidebar-btn.sidebar-btn--conversation, .sidebar--collapsed .sidebar-btn.sidebar-btn--public-speaking, .sidebar--collapsed .sidebar-btn.sidebar-btn--journal { min-height: 54px; padding-inline: 0; }
 
 .main-content {
   flex: 1;

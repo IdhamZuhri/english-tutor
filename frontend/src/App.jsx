@@ -9,6 +9,7 @@ import ChannelsScreen from './components/ChannelsScreen.jsx';
 import LessonsScreen from './components/LessonsScreen.jsx';
 import PublicSpeakingScreen from './components/PublicSpeakingScreen.jsx';
 import HomeScreen from './components/HomeScreen.jsx';
+import JournalScreen from './components/JournalScreen.jsx';
 import { validPersona } from './personas.js';
 
 /**
@@ -19,6 +20,7 @@ export default function App() {
   const [screen, setScreen] = useState('home');
   const [sessionSource, setSessionSource] = useState('conversation');
   const [selectedSpeechId, setSelectedSpeechId] = useState(null);
+  const [selectedJournalId, setSelectedJournalId] = useState(null);
   const [isHistoryView, setIsHistoryView] = useState(false);
   const [persona, setPersona] = useState(() => {
     try { return validPersona(localStorage.getItem('speakwell-persona')); }
@@ -81,6 +83,7 @@ export default function App() {
 
   const handleTabChange = (tabId) => {
     if (tabId === 'public-speaking') setSelectedSpeechId(null);
+    if (tabId === 'journal') setSelectedJournalId(null);
     setScreen(tabId);
   };
 
@@ -89,12 +92,17 @@ export default function App() {
     setScreen('public-speaking');
   };
 
+  const handleViewJournal = id => {
+    setSelectedJournalId(id);
+    setScreen('journal');
+  };
+
   return (
     <div className="app-layout">
       <Sidebar activeTab={screen === 'session' ? sessionSource : screen === 'summary' && !isHistoryView ? sessionSource : screen} onTabChange={handleTabChange} />
       
       <main className="main-content">
-        {screen === 'home' && <HomeScreen onNavigate={handleTabChange} onViewHistory={handleViewHistory} onViewSpeech={handleViewSpeech} />}
+        {screen === 'home' && <HomeScreen onNavigate={handleTabChange} onViewHistory={handleViewHistory} onViewSpeech={handleViewSpeech} onViewJournal={handleViewJournal} />}
 
         {screen === 'conversation' && (
           <SetupScreen onStart={handleStart} persona={persona} onPersonaChange={handlePersonaChange} />
@@ -113,6 +121,7 @@ export default function App() {
         {screen === 'lessons' && <LessonsScreen />}
 
         {screen === 'public-speaking' && <PublicSpeakingScreen initialSpeechId={selectedSpeechId} />}
+        {screen === 'journal' && <JournalScreen initialEntryId={selectedJournalId} />}
 
       {screen === 'session' && (
         <ChatScreen

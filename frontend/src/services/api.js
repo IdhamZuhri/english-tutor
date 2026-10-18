@@ -61,6 +61,48 @@ export async function submitSpeech(audioBlob, details) {
   return res.json();
 }
 
+async function journalJson(res) {
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || `Journal request failed (${res.status})`);
+  return data;
+}
+
+export async function fetchJournalEntries() {
+  return journalJson(await fetch(`${BASE}/journal`));
+}
+
+export async function fetchJournalEntry(id) {
+  return journalJson(await fetch(`${BASE}/journal/${id}`));
+}
+
+export async function transcribeJournalAudio(audioBlob) {
+  const form = new FormData();
+  const ext = audioBlob.type.includes('mp4') ? 'm4a' : audioBlob.type.includes('ogg') ? 'ogg' : 'webm';
+  form.append('audio', audioBlob, `journal.${ext}`);
+  return journalJson(await fetch(`${BASE}/journal/transcribe`, { method: 'POST', body: form }));
+}
+
+export async function fetchJournalFollowUp(responses) {
+  return journalJson(await fetch(`${BASE}/journal/follow-up`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responses }),
+  }));
+}
+
+export async function saveJournalEntry(entry, audioBlobs) {
+  const form = new FormData();
+  form.append('entry', JSON.stringify(entry));
+  audioBlobs.forEach((blob, index) => {
+    if (!blob) return;
+    const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm';
+    form.append(`audio${index}`, blob, `journal-${index}.${ext}`);
+  });
+  return journalJson(await fetch(`${BASE}/journal`, { method: 'POST', body: form }));
+}
+
+export async function reviewJournalGrammar(id) {
+  return journalJson(await fetch(`${BASE}/journal/${id}/grammar`, { method: 'POST' }));
+}
+
 /**
  * Send a recorded audio blob and get back transcript, corrections, reply, and TTS audio.
  * @param {Blob} audioBlob - recorded audio from MediaRecorder

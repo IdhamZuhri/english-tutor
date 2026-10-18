@@ -1,6 +1,6 @@
 # SpeakWell
 
-SpeakWell is a local English speaking practice app. Home helps you choose between AI conversation, public speaking rehearsal, personalized practice, videos, notes, and history. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and feedback.
+SpeakWell is a local English speaking practice app. Home helps you choose between AI conversation, public speaking rehearsal, a voice journal, personalized practice, videos, notes, and history. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and feedback.
 
 ## Requirements
 
@@ -30,13 +30,17 @@ For frontend development, run `npm.cmd run dev` in another terminal, then open <
 
 ## Data and configuration
 
-Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file to preserve your history. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-6-luna`. `PORT` can change the server port, but the Windows launcher opens port 8000.
+Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file and `backend/data/journal-audio/` to preserve your history and journal recordings. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-6-luna`. `PORT` can change the server port, but the Windows launcher opens port 8000.
 
 The app currently displays text replies. Spoken replies and scored session analysis are not enabled in the current interface.
 
 ## Public speaking
 
 Open **Public Speaking** from the sidebar to rehearse a presentation, story, or persuasive pitch. Choose a challenge or enter your own topic, add up to three cue cards, and set a time goal. After recording, you can listen back and request a transcript-based review with strengths and one specific next step. Past reviews appear on the same page. SpeakWell saves the transcript and feedback in `backend/data/sessions.json`; the audio recording is only kept temporarily in the browser and is not saved. Feedback based on text cannot assess voice, pronunciation, eye contact, or body language.
+
+## Daily journal
+
+Open **Daily Journal** to make a guided reflection, answer a few gentle follow-up questions, or journal freely. Write or record each response, and mix both in one entry. Choose a mood, review or edit your text, and save. Entries are organized by date; spoken responses include replayable audio. **Check grammar** is optional and runs only when selected. Journal text is saved in `backend/data/sessions.json` and recordings in `backend/data/journal-audio/`. Audio is sent to OpenAI only for transcription; journal text is sent for follow-up questions and optional grammar review.
 
 ## Troubleshooting
 

@@ -8,6 +8,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const dist = path.join(root, 'frontend', 'dist');
 const dataFile = process.env.SPEAKWELL_DATA_FILE || path.join(here, 'data', 'sessions.json');
+const journalAudioDir = path.join(path.dirname(dataFile), 'journal-audio');
 const port = Number(process.env.PORT || 8000);
 
 async function loadEnv() {
@@ -39,9 +40,10 @@ try {
   if (!Array.isArray(store.sessions)) throw new Error('Invalid session store');
   if (!Array.isArray(store.practiceAttempts)) store.practiceAttempts = [];
   if (!Array.isArray(store.speeches)) store.speeches = [];
+  if (!Array.isArray(store.journalEntries)) store.journalEntries = [];
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;
-  store = { nextId: 1, sessions: [], practiceAttempts: [], speeches: [] };
+  store = { nextId: 1, sessions: [], practiceAttempts: [], speeches: [], journalEntries: [] };
 }
 
 let saveChain = Promise.resolve();
@@ -115,9 +117,114 @@ function safeMessages(messages) {
     .slice(-30).map(m => ({ role: m.role, content: m.content.slice(0, 4000) }));
 }
 
+const journalModes = ['guided', 'conversation', 'free'];
+const journalMoods = ['great', 'good', 'okay', 'low', 'anxious'];
+const audioTypes = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/wav': 'wav', 'audio/mpeg': 'mp3' };
+
+function parseForm(req, bytes) {
+  return new Request('http://localhost/', { method: 'POST', headers: { 'content-type': req.headers['content-type'] || '' }, body: bytes }).formData();
+}
+
+async function transcribe(audio) {
+  const audioForm = new FormData();
+  audioForm.append('file', audio, audio.name || 'journal.webm');
+  audioForm.append('model', 'whisper-1');
+  const transcription = await openai('audio/transcriptions', audioForm, true);
+  return transcription.text?.trim() || '';
+}
+
+function journalDetail(entry) {
+  return { ...entry, responses: entry.responses.map((response, index) => ({ prompt: response.prompt, transcript: response.transcript, source: response.audioFile ? 'spoken' : 'written', audioUrl: response.audioFile ? `/api/journal/${entry.id}/audio/${index}` : null })) };
+}
+
 async function api(req, res, pathname, searchParams) {
   if (pathname === '/api/health' && req.method === 'GET') {
     return json(res, 200, { status: 'ok', ready: Boolean(apiKey), missing_keys: apiKey ? [] : ['OPENAI_API_KEY'] });
+  }
+  if (pathname === '/api/journal' && req.method === 'GET') {
+    return json(res, 200, store.journalEntries.slice().reverse().map(({ id, title, mood, mode, created_at, responses, grammar }) => ({ id, title, mood, mode, created_at, responseCount: responses.length, grammarChecked: Boolean(grammar) })));
+  }
+  if (pathname === '/api/journal/transcribe' && req.method === 'POST') {
+    const form = await parseForm(req, await bodyBytes(req, 16_000_000));
+    const audio = form.get('audio');
+    if (!audio || typeof audio.arrayBuffer !== 'function' || audio.size < 8000 || audio.size > 15_000_000 || !audioTypes[String(audio.type || '').split(';')[0]]) return json(res, 400, { detail: 'Record at least a few seconds of supported audio to add a journal response.' });
+    const transcript = await transcribe(audio);
+    if (transcript.split(/\s+/).length < 2) return json(res, 422, { detail: 'We could not hear enough speech. Please try again.' });
+    return json(res, 200, { transcript: transcript.slice(0, 6000) });
+  }
+  if (pathname === '/api/journal/follow-up' && req.method === 'POST') {
+    let body;
+    try { body = JSON.parse((await bodyBytes(req, 20_000)).toString('utf8')); }
+    catch { return json(res, 400, { detail: 'Invalid journal conversation' }); }
+    const responses = body.responses;
+    if (!Array.isArray(responses) || responses.length < 1 || responses.length > 2 || responses.some(item => typeof item?.prompt !== 'string' || typeof item?.transcript !== 'string')) return json(res, 400, { detail: 'Invalid journal conversation' });
+    const question = await complete([
+      { role: 'system', content: 'You are a gentle journaling companion. Based on the reflections, ask one brief, open-ended follow-up question that helps the person reflect on their day. Do not give advice, diagnose, evaluate emotions, or correct grammar. Return only the question.' },
+      { role: 'user', content: JSON.stringify(responses.map(item => ({ question: item.prompt.slice(0, 240), answer: item.transcript.slice(0, 2000) }))) },
+    ]);
+    return json(res, 200, { question: question.slice(0, 240) });
+  }
+  if (pathname === '/api/journal' && req.method === 'POST') {
+    const form = await parseForm(req, await bodyBytes(req, 46_000_000));
+    let draft;
+    try { draft = JSON.parse(String(form.get('entry') || '')); }
+    catch { return json(res, 400, { detail: 'Invalid journal entry' }); }
+    const { title, mood, mode, responses } = draft || {};
+    if (typeof title !== 'string' || !title.trim() || title.length > 120 || !journalMoods.includes(mood) || !journalModes.includes(mode) || !Array.isArray(responses) || responses.length < 1 || responses.length > 3 || (mode === 'free' && responses.length !== 1)) return json(res, 400, { detail: 'Complete the journal title, mood, and at least one reflection.' });
+    const normalized = [];
+    for (let index = 0; index < responses.length; index++) {
+      const response = responses[index];
+      const audio = form.get(`audio${index}`);
+      const type = String(audio?.type || '').split(';')[0];
+      if (typeof response?.prompt !== 'string' || !response.prompt.trim() || response.prompt.length > 240 || typeof response?.transcript !== 'string' || !response.transcript.trim() || response.transcript.length > 6000 || (audio && (typeof audio.arrayBuffer !== 'function' || audio.size < 8000 || audio.size > 15_000_000 || !audioTypes[type]))) return json(res, 400, { detail: 'Each reflection needs text and, if recorded, a valid audio clip.' });
+      normalized.push({ prompt: response.prompt.trim(), transcript: response.transcript.trim(), audio, type });
+    }
+    const id = store.nextId;
+    if (normalized.some(item => item.audio)) await mkdir(journalAudioDir, { recursive: true });
+    const savedResponses = [];
+    for (let index = 0; index < normalized.length; index++) {
+      const item = normalized[index];
+      let audioFile = null;
+      if (item.audio) {
+        audioFile = `${id}-${index}.${audioTypes[item.type]}`;
+        await writeFile(path.join(journalAudioDir, audioFile), Buffer.from(await item.audio.arrayBuffer()));
+      }
+      savedResponses.push({ prompt: item.prompt, transcript: item.transcript, audioFile, audioType: item.audio ? item.type : null });
+    }
+    const entry = { id: store.nextId++, title: title.trim(), mood, mode, created_at: new Date().toISOString(), responses: savedResponses, grammar: null };
+    store.journalEntries.push(entry);
+    await save();
+    return json(res, 201, journalDetail(entry));
+  }
+  const journalMatch = pathname.match(/^\/api\/journal\/(\d+)$/);
+  if (journalMatch && req.method === 'GET') {
+    const entry = store.journalEntries.find(item => item.id === Number(journalMatch[1]));
+    return entry ? json(res, 200, journalDetail(entry)) : json(res, 404, { detail: 'Journal entry not found' });
+  }
+  const journalAudioMatch = pathname.match(/^\/api\/journal\/(\d+)\/audio\/(\d+)$/);
+  if (journalAudioMatch && req.method === 'GET') {
+    const entry = store.journalEntries.find(item => item.id === Number(journalAudioMatch[1]));
+    const response = entry?.responses[Number(journalAudioMatch[2])];
+    if (!response || !/^\d+-\d+\.(webm|ogg|m4a|wav|mp3)$/.test(response.audioFile)) return json(res, 404, { detail: 'Recording not found' });
+    const audio = await readFile(path.join(journalAudioDir, response.audioFile));
+    res.writeHead(200, { 'content-type': response.audioType, 'content-length': audio.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+    return res.end(audio);
+  }
+  const journalGrammarMatch = pathname.match(/^\/api\/journal\/(\d+)\/grammar$/);
+  if (journalGrammarMatch && req.method === 'POST') {
+    const entry = store.journalEntries.find(item => item.id === Number(journalGrammarMatch[1]));
+    if (!entry) return json(res, 404, { detail: 'Journal entry not found' });
+    if (entry.grammar) return json(res, 200, journalDetail(entry));
+    const raw = await complete([
+      { role: 'system', content: 'You are a supportive English editor. Review journal responses only when requested. Return JSON with summary (one gentle sentence) and suggestions (array of objects with responseIndex, original, improved, explanation). Include up to six clear grammar or word-choice fixes. Preserve the writer\'s meaning, emotion, informal voice, and personal style. Do not rewrite the entire journal or assess pronunciation. If nothing needs correction, use an empty suggestions array.' },
+      { role: 'user', content: JSON.stringify(entry.responses.map(({ prompt, transcript }, index) => ({ responseIndex: index, prompt, transcript }))) },
+    ], true);
+    entry.grammar = {
+      summary: String(raw.summary || 'Here is a gentle review of your writing.').slice(0, 240),
+      suggestions: (Array.isArray(raw.suggestions) ? raw.suggestions : []).filter(item => Number.isInteger(item?.responseIndex) && item.responseIndex >= 0 && item.responseIndex < entry.responses.length).slice(0, 6).map(item => ({ responseIndex: item.responseIndex, original: String(item.original || '').slice(0, 300), improved: String(item.improved || '').slice(0, 300), explanation: String(item.explanation || '').slice(0, 300) })),
+    };
+    await save();
+    return json(res, 200, journalDetail(entry));
   }
   if (pathname === '/api/speeches' && req.method === 'GET') {
     return json(res, 200, store.speeches.slice().reverse().map(({ id, title, format, durationSecs, created_at, feedback }) => ({ id, title, format, durationSecs, created_at, headline: feedback.headline })));
