@@ -4,7 +4,7 @@ import Icon from './Icon.jsx';
 import './HomeScreen.css';
 
 const explore = [
-  { id: 'practice', title: 'My Practice', description: 'Turn your conversation corrections into focused exercises.', icon: 'target', action: 'Work on my skills' },
+  { id: 'practice', title: 'My Practice', description: 'Choose your next step across conversation, public speaking, and journaling.', icon: 'target', action: 'Keep growing' },
   { id: 'channels', title: 'Channels', description: 'Find videos and listening ideas for a fresh spark.', icon: 'play', action: 'Explore channels' },
   { id: 'lessons', title: 'English Notes', description: 'Refresh a useful English concept before you speak.', icon: 'book', action: 'Browse notes' },
   { id: 'history', title: 'History', description: 'Find every conversation, rehearsal, and journal entry in one place.', icon: 'history', action: 'View history' },

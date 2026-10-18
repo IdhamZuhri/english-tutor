@@ -117,7 +117,7 @@ export default function App() {
         )}
 
         {screen === 'practice' && (
-          <PracticeScreen onStartSpeaking={handleFocusedStart} />
+          <PracticeScreen onStartSpeaking={handleFocusedStart} onNavigate={handleTabChange} onViewSpeech={handleViewSpeech} />
         )}
 
         {screen === 'channels' && <ChannelsScreen />}
