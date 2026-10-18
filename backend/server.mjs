@@ -24,7 +24,7 @@ async function loadEnv() {
 
 await loadEnv();
 const apiKey = process.env.OPENAI_API_KEY?.trim();
-const model = process.env.OPENAI_MODEL?.trim() || 'gpt-4o-mini';
+const model = process.env.OPENAI_MODEL?.trim() || 'gpt-6-luna';
 const personaInstructions = {
   balanced: 'Be a natural, friendly conversation partner. Use clear everyday English and ask one relevant follow-up question.',
   chill: 'Be a relaxed, easygoing friend. Use natural conversational English, keep the tone low pressure, and ask casual follow-up questions without excessive slang.',

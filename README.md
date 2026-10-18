@@ -30,7 +30,7 @@ For frontend development, run `npm.cmd run dev` in another terminal, then open <
 
 ## Data and configuration
 
-Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file to preserve your history. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-4o-mini`. `PORT` can change the server port, but the Windows launcher opens port 8000.
+Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file to preserve your history. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-6-luna`. `PORT` can change the server port, but the Windows launcher opens port 8000.
 
 The app currently displays text replies. Spoken replies and scored session analysis are not enabled in the current interface.
 

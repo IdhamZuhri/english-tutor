@@ -58,7 +58,7 @@ def _get_client() -> AsyncOpenAI:
     return _client
 
 def _get_model() -> str:
-    return os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    return os.environ.get("OPENAI_MODEL", "gpt-6-luna")
 
 def _build_messages(history: List[Dict], new_message: str, system_prompt: str) -> List[Dict[str, str]]:
     """Convert chat history to OpenAI message format."""

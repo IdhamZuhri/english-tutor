@@ -78,7 +78,7 @@ async def analyze_session(history: List[Dict]) -> Dict[str, Any]:
     Analyze a full session transcript and return structured performance scores.
     """
     client = _get_client()
-    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    model = os.environ.get("OPENAI_MODEL", "gpt-6-luna")
 
     # Filter to only user messages for analysis
     user_messages = [m for m in history if m["role"] == "user"]
