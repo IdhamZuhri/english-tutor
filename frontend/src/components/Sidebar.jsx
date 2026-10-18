@@ -14,11 +14,13 @@ export default function Sidebar({ activeTab, onTabChange }) {
     });
   };
   const tabs = [
-    { id: 'setup', label: 'Home', icon: 'home' },
-    { id: 'history', label: 'History', icon: 'history' },
+    { id: 'home', label: 'Home', icon: 'home' },
+    { id: 'conversation', label: 'Conversation', icon: 'chat' },
+    { id: 'public-speaking', label: 'Public Speaking', icon: 'podium' },
     { id: 'practice', label: 'My Practice', icon: 'target' },
     { id: 'channels', label: 'Channels', icon: 'play' },
     { id: 'lessons', label: 'English Notes', icon: 'book' },
+    { id: 'history', label: 'History', icon: 'history' },
   ];
 
   return (
@@ -36,7 +38,7 @@ export default function Sidebar({ activeTab, onTabChange }) {
         {tabs.map((tab) => (
           <button
             key={tab.id}
-            className={`sidebar-btn ${activeTab === tab.id || (activeTab === 'session' && tab.id === 'setup') || (activeTab === 'summary' && tab.id === 'history') ? 'active' : ''}`}
+            className={`sidebar-btn ${activeTab === tab.id || (activeTab === 'summary' && tab.id === 'history') ? 'active' : ''}`}
             onClick={() => onTabChange(tab.id)}
             aria-label={collapsed ? tab.label : undefined}
             title={collapsed ? tab.label : undefined}

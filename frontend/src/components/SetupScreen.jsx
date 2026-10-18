@@ -35,10 +35,10 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
       {/* Hero */}
       <header className="setup-hero">
         <div className="setup-logo"><Icon name="mic" size={48} /></div>
-        <h1 className="gradient-text">SpeakWell</h1>
+        <h1 className="gradient-text">Conversation practice</h1>
         <p className="setup-subtitle">
-          Your personal AI English speaking companion.<br />
-          Practice naturally. Improve effortlessly.
+          Pick a topic and talk it through with your speaking partner.<br />
+          A few minutes of real conversation can make a difference.
         </p>
       </header>
 

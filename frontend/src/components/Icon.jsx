@@ -20,6 +20,8 @@ const paths = {
   target: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="5" /><circle cx="12" cy="12" r="1" fill="currentColor" /></>,
   play: <><rect x="2" y="4" width="20" height="16" rx="4" /><path d="m10 8 6 4-6 4z" /></>,
   book: <><path d="M12 6c-2-2-5-2-9-2v15c4 0 7 0 9 2 2-2 5-2 9-2V4c-4 0-7 0-9 2Z" /><path d="M12 6v15" /></>,
+  podium: <><path d="M4 21h16M8 21V9h8v12M5 9h14V5H5zM12 5V2" /></>,
+  spark: <><path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2ZM19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z" /></>,
 };
 
 export default function Icon({ name, size = 20, className = '' }) {

@@ -17,7 +17,12 @@ test('local server serves the app and persists a conversation', async () => {
     if (String(url).endsWith('/audio/transcriptions')) return Response.json({ text: 'I go to school yesterday.' });
     const request = JSON.parse(options.body);
     completionPrompts.push(request.messages);
-    if (request.response_format) return Response.json({ choices: [{ message: { content: JSON.stringify({ has_corrections: true, corrected_sentence: 'I went to school yesterday.', corrections: [{ original: 'go', corrected: 'went', explanation: 'Past tense' }] }) } }] });
+    if (request.response_format) {
+      const isSpeech = request.messages[0]?.content?.includes('public speaking coach');
+      return Response.json({ choices: [{ message: { content: JSON.stringify(isSpeech
+        ? { headline: 'A clear first rehearsal.', strengths: ['Your opening introduces the topic.'], nextStep: 'Add one concrete example.', openingSuggestion: 'Let me tell you why this matters.' }
+        : { has_corrections: true, corrected_sentence: 'I went to school yesterday.', corrections: [{ original: 'go', corrected: 'went', explanation: 'Past tense' }] }) } }] });
+    }
     return Response.json({ choices: [{ message: { content: 'What did you learn there?' } }] });
   };
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -55,6 +60,22 @@ test('local server serves the app and persists a conversation', async () => {
     assert.equal(attempt.status, 201);
     assert.equal((await (await realFetch(`${base}/api/practice`)).json()).attempts.length, 1);
 
+    const invalidSpeech = await realFetch(`${base}/api/speeches`, { method: 'POST', body: new FormData() });
+    assert.equal(invalidSpeech.status, 400);
+    const speechForm = new FormData();
+    speechForm.append('audio', new Blob([Buffer.alloc(9000)], { type: 'audio/webm' }), 'speech.webm');
+    speechForm.append('title', 'My first presentation');
+    speechForm.append('format', 'Presentation');
+    speechForm.append('outline', 'Opening\nMain point\nClosing');
+    speechForm.append('durationSecs', '60');
+    const speechResponse = await realFetch(`${base}/api/speeches`, { method: 'POST', body: speechForm });
+    assert.equal(speechResponse.status, 201);
+    const speech = await speechResponse.json();
+    assert.equal(speech.feedback.pace, 5);
+    assert.equal(speech.feedback.nextStep, 'Add one concrete example.');
+    assert.equal((await (await realFetch(`${base}/api/speeches`)).json())[0].title, 'My first presentation');
+    assert.equal((await (await realFetch(`${base}/api/speeches/${speech.id}`)).json()).transcript, 'I go to school yesterday.');
+
     const sessions = await (await realFetch(`${base}/api/sessions`)).json();
     assert.equal(sessions.length, 1);
     assert.equal(sessions[0].persona, 'chill');
@@ -66,6 +87,7 @@ test('local server serves the app and persists a conversation', async () => {
     const saved = JSON.parse(await readFile(dataFile, 'utf8'));
     assert.equal(saved.sessions[0].history.length, 3);
     assert.equal(saved.practiceAttempts.length, 1);
+    assert.equal(saved.speeches.length, 1);
   } finally {
     globalThis.fetch = realFetch;
     await new Promise(resolve => server.close(resolve));

@@ -1,6 +1,6 @@
 # SpeakWell
 
-SpeakWell is a local English conversation practice app. Speak into your microphone, receive a short AI reply and written grammar suggestions, then review past sessions. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and conversation.
+SpeakWell is a local English speaking practice app. Home helps you choose between AI conversation, public speaking rehearsal, personalized practice, videos, notes, and history. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and feedback.
 
 ## Requirements
 
@@ -33,6 +33,10 @@ For frontend development, run `npm.cmd run dev` in another terminal, then open <
 Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file to preserve your history. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-6-luna`. `PORT` can change the server port, but the Windows launcher opens port 8000.
 
 The app currently displays text replies. Spoken replies and scored session analysis are not enabled in the current interface.
+
+## Public speaking
+
+Open **Public Speaking** from the sidebar to rehearse a presentation, story, or persuasive pitch. Choose a challenge or enter your own topic, add up to three cue cards, and set a time goal. After recording, you can listen back and request a transcript-based review with strengths and one specific next step. Past reviews appear on the same page. SpeakWell saves the transcript and feedback in `backend/data/sessions.json`; the audio recording is only kept temporarily in the browser and is not saved. Feedback based on text cannot assess voice, pronunciation, eye contact, or body language.
 
 ## Troubleshooting
 

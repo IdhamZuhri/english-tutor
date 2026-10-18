@@ -7,14 +7,18 @@ import HistoryScreen from './components/HistoryScreen.jsx';
 import PracticeScreen from './components/PracticeScreen.jsx';
 import ChannelsScreen from './components/ChannelsScreen.jsx';
 import LessonsScreen from './components/LessonsScreen.jsx';
+import PublicSpeakingScreen from './components/PublicSpeakingScreen.jsx';
+import HomeScreen from './components/HomeScreen.jsx';
 import { validPersona } from './personas.js';
 
 /**
  * App — top-level screen router.
- * Screens: 'setup' → 'session' → 'summary' → 'setup'
+ * Conversation flow: 'conversation' → 'session' → 'summary'.
  */
 export default function App() {
-  const [screen, setScreen] = useState('setup');
+  const [screen, setScreen] = useState('home');
+  const [sessionSource, setSessionSource] = useState('conversation');
+  const [selectedSpeechId, setSelectedSpeechId] = useState(null);
   const [isHistoryView, setIsHistoryView] = useState(false);
   const [persona, setPersona] = useState(() => {
     try { return validPersona(localStorage.getItem('speakwell-persona')); }
@@ -27,7 +31,7 @@ export default function App() {
     try { localStorage.setItem('speakwell-persona', next); } catch { /* Storage may be unavailable. */ }
   };
 
-  // Session config — set on setup screen
+  // Session config — set on the conversation page
   const [sessionConfig, setSessionConfig] = useState({
     topic: '',
     durationSecs: 300,
@@ -40,6 +44,7 @@ export default function App() {
   const [sessionId, setSessionId] = useState(null);
 
   const handleStart = ({ topic, durationSecs }) => {
+    setSessionSource('conversation');
     setSessionConfig({ topic, durationSecs, focus: null, persona });
     setHistory([]);
     setSessionId(null);
@@ -48,6 +53,7 @@ export default function App() {
   };
 
   const handleFocusedStart = ({ topic, focus }) => {
+    setSessionSource('practice');
     setSessionConfig({ topic, durationSecs: 300, focus, persona });
     setHistory([]);
     setSessionId(null);
@@ -70,19 +76,27 @@ export default function App() {
 
   const handleRestart = () => {
     setHistory([]);
-    setScreen(!isHistoryView && sessionConfig.focus ? 'practice' : 'setup');
+    setScreen(isHistoryView ? 'history' : sessionConfig.focus ? 'practice' : 'conversation');
   };
 
   const handleTabChange = (tabId) => {
+    if (tabId === 'public-speaking') setSelectedSpeechId(null);
     setScreen(tabId);
+  };
+
+  const handleViewSpeech = id => {
+    setSelectedSpeechId(id);
+    setScreen('public-speaking');
   };
 
   return (
     <div className="app-layout">
-      <Sidebar activeTab={screen} onTabChange={handleTabChange} />
+      <Sidebar activeTab={screen === 'session' ? sessionSource : screen === 'summary' && !isHistoryView ? sessionSource : screen} onTabChange={handleTabChange} />
       
       <main className="main-content">
-        {screen === 'setup' && (
+        {screen === 'home' && <HomeScreen onNavigate={handleTabChange} onViewHistory={handleViewHistory} onViewSpeech={handleViewSpeech} />}
+
+        {screen === 'conversation' && (
           <SetupScreen onStart={handleStart} persona={persona} onPersonaChange={handlePersonaChange} />
         )}
 
@@ -97,6 +111,8 @@ export default function App() {
         {screen === 'channels' && <ChannelsScreen />}
 
         {screen === 'lessons' && <LessonsScreen />}
+
+        {screen === 'public-speaking' && <PublicSpeakingScreen initialSpeechId={selectedSpeechId} />}
 
       {screen === 'session' && (
         <ChatScreen

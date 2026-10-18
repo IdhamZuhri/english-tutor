@@ -42,7 +42,7 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
           </div>
         </div>
         <button id="new-session-btn" className="btn btn-primary" onClick={onRestart}>
-          {isHistoryView ? "Back to Home" : focus ? "Back to My Practice" : "Start New Session"}
+          {isHistoryView ? "Back to History" : focus ? "Back to My Practice" : "New conversation"}
         </button>
       </header>
 

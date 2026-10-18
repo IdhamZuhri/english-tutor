@@ -36,6 +36,31 @@ export async function savePracticeAttempt(attempt) {
   return res.json();
 }
 
+export async function fetchSpeeches() {
+  const res = await fetch(`${BASE}/speeches`);
+  if (!res.ok) throw new Error('Could not load rehearsals.');
+  return res.json();
+}
+
+export async function fetchSpeech(id) {
+  const res = await fetch(`${BASE}/speeches/${id}`);
+  if (!res.ok) throw new Error('Could not load this rehearsal.');
+  return res.json();
+}
+
+export async function submitSpeech(audioBlob, details) {
+  const form = new FormData();
+  const ext = audioBlob.type.includes('mp4') ? 'm4a' : audioBlob.type.includes('ogg') ? 'ogg' : 'webm';
+  form.append('audio', audioBlob, `speech.${ext}`);
+  Object.entries(details).forEach(([key, value]) => form.append(key, String(value)));
+  const res = await fetch(`${BASE}/speeches`, { method: 'POST', body: form });
+  if (!res.ok) {
+    const error = await res.json().catch(() => ({}));
+    throw new Error(error.detail || 'Could not review your rehearsal. Please try again.');
+  }
+  return res.json();
+}
+
 /**
  * Send a recorded audio blob and get back transcript, corrections, reply, and TTS audio.
  * @param {Blob} audioBlob - recorded audio from MediaRecorder

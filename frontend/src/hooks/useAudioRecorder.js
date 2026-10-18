@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 
 /**
  * useAudioRecorder — MediaRecorder-based push-to-talk hook.
@@ -95,6 +95,12 @@ export function useAudioRecorder() {
       
       mediaRecorderRef.current.stop();
     });
+  }, []);
+
+  useEffect(() => () => {
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
   }, []);
 
   return {

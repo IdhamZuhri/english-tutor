@@ -38,9 +38,10 @@ try {
   store = JSON.parse(await readFile(dataFile, 'utf8'));
   if (!Array.isArray(store.sessions)) throw new Error('Invalid session store');
   if (!Array.isArray(store.practiceAttempts)) store.practiceAttempts = [];
+  if (!Array.isArray(store.speeches)) store.speeches = [];
 } catch (error) {
   if (error.code !== 'ENOENT') throw error;
-  store = { nextId: 1, sessions: [], practiceAttempts: [] };
+  store = { nextId: 1, sessions: [], practiceAttempts: [], speeches: [] };
 }
 
 let saveChain = Promise.resolve();
@@ -117,6 +118,50 @@ function safeMessages(messages) {
 async function api(req, res, pathname, searchParams) {
   if (pathname === '/api/health' && req.method === 'GET') {
     return json(res, 200, { status: 'ok', ready: Boolean(apiKey), missing_keys: apiKey ? [] : ['OPENAI_API_KEY'] });
+  }
+  if (pathname === '/api/speeches' && req.method === 'GET') {
+    return json(res, 200, store.speeches.slice().reverse().map(({ id, title, format, durationSecs, created_at, feedback }) => ({ id, title, format, durationSecs, created_at, headline: feedback.headline })));
+  }
+  if (pathname === '/api/speeches' && req.method === 'POST') {
+    const bytes = await bodyBytes(req, 25_000_000);
+    const form = await new Request('http://localhost/', { method: 'POST', headers: { 'content-type': req.headers['content-type'] || '' }, body: bytes }).formData();
+    const audio = form.get('audio');
+    const title = String(form.get('title') || '').trim().slice(0, 120);
+    const format = String(form.get('format') || '').trim().slice(0, 40);
+    const outline = String(form.get('outline') || '').trim().slice(0, 1200);
+    const durationSecs = Number(form.get('durationSecs'));
+    if (!title || !['Presentation', 'Storytelling', 'Persuasive pitch'].includes(format) || !Number.isFinite(durationSecs) || durationSecs < 5 || durationSecs > 900 || !audio || typeof audio.arrayBuffer !== 'function' || audio.size < 8000) {
+      return json(res, 400, { detail: 'Record at least a few seconds and complete the speech details.' });
+    }
+    const audioForm = new FormData();
+    audioForm.append('file', audio, audio.name || 'speech.webm');
+    audioForm.append('model', 'whisper-1');
+    const transcription = await openai('audio/transcriptions', audioForm, true);
+    const transcript = transcription.text?.trim();
+    if (!transcript || transcript.split(/\s+/).length < 5) return json(res, 422, { detail: 'We could not hear enough speech. Try recording again in a quieter place.' });
+    const words = transcript.match(/\b[\w'-]+\b/g) || [];
+    const fillerCount = (transcript.match(/\b(um|uh|erm|you know|like)\b/gi) || []).length;
+    const pace = Math.round(words.length / (durationSecs / 60));
+    const raw = await complete([
+      { role: 'system', content: 'You are a supportive public speaking coach. Assess only the supplied transcript and outline. Return JSON with headline (one short encouraging sentence), strengths (array of 1-2 specific observations), nextStep (one concrete action for the next rehearsal), and openingSuggestion (one optional improved opening sentence). Do not claim to assess vocal delivery, eye contact, body language, confidence, or pronunciation. Avoid numeric scores.' },
+      { role: 'user', content: JSON.stringify({ title, format, outline, transcript }) },
+    ], true);
+    const feedback = {
+      headline: String(raw.headline || 'You completed a rehearsal.').slice(0, 240),
+      strengths: (Array.isArray(raw.strengths) ? raw.strengths : []).slice(0, 2).map(value => String(value).slice(0, 300)),
+      nextStep: String(raw.nextStep || 'Try one more rehearsal with a clear opening and close.').slice(0, 300),
+      openingSuggestion: String(raw.openingSuggestion || '').slice(0, 300),
+      wordCount: words.length, pace, fillerCount,
+    };
+    const speech = { id: store.nextId++, title, format, outline, durationSecs: Math.round(durationSecs), transcript, feedback, created_at: new Date().toISOString() };
+    store.speeches.push(speech);
+    await save();
+    return json(res, 201, speech);
+  }
+  const speechMatch = pathname.match(/^\/api\/speeches\/(\d+)$/);
+  if (speechMatch && req.method === 'GET') {
+    const speech = store.speeches.find(item => item.id === Number(speechMatch[1]));
+    return speech ? json(res, 200, speech) : json(res, 404, { detail: 'Rehearsal not found' });
   }
   if (pathname === '/api/opening' && req.method === 'GET') {
     const topic = (searchParams.get('topic') || 'Small Talk').slice(0, 80);
