@@ -14,9 +14,9 @@ export default function Sidebar({ activeTab, onTabChange }) {
     });
   };
   const tabs = [
-    { id: 'home', label: 'Home', icon: 'home' },
-    { id: 'conversation', label: 'Conversation', icon: 'chat' },
-    { id: 'public-speaking', label: 'Public Speaking', icon: 'podium' },
+    { id: 'home', label: 'Home', subtitle: 'Your starting point', icon: 'home' },
+    { id: 'conversation', label: 'Conversation', subtitle: 'Everyday fluency', icon: 'chat' },
+    { id: 'public-speaking', label: 'Public Speaking', subtitle: 'Speak with purpose', icon: 'podium' },
     { id: 'practice', label: 'My Practice', icon: 'target' },
     { id: 'channels', label: 'Channels', icon: 'play' },
     { id: 'lessons', label: 'English Notes', icon: 'book' },
@@ -35,18 +35,23 @@ export default function Sidebar({ activeTab, onTabChange }) {
         </button>
       </div>
       <div className="sidebar-menu">
-        {tabs.map((tab) => (
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.id || (activeTab === 'summary' && tab.id === 'history');
+          return (
           <button
             key={tab.id}
-            className={`sidebar-btn ${activeTab === tab.id || (activeTab === 'summary' && tab.id === 'history') ? 'active' : ''}`}
+            type="button"
+            className={`sidebar-btn sidebar-btn--${tab.id} ${isActive ? 'active' : ''}`}
             onClick={() => onTabChange(tab.id)}
             aria-label={collapsed ? tab.label : undefined}
+            aria-current={isActive ? 'page' : undefined}
             title={collapsed ? tab.label : undefined}
           >
             <span className="sidebar-icon"><Icon name={tab.icon} size={20} /></span>
-            {!collapsed && <span className="sidebar-label">{tab.label}</span>}
+            {!collapsed && <span className="sidebar-copy"><span className="sidebar-label">{tab.label}</span>{tab.subtitle && <small>{tab.subtitle}</small>}</span>}
           </button>
-        ))}
+          );
+        })}
       </div>
     </nav>
   );
