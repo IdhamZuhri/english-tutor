@@ -72,6 +72,7 @@ export function useSession({ topic, durationSecs, focus, persona, onSessionEnd }
       });
     }, 1000);
   }, [endSession]);
+  const setRecording = useCallback(recording => setAppState(recording ? 'recording' : 'idle'), []);
 
   // Handle time out
   useEffect(() => {
@@ -175,6 +176,7 @@ export function useSession({ topic, durationSecs, focus, persona, onSessionEnd }
     toast,
     isInitializing,
     processTurn,
+    setRecording,
     endSession,
   };
 }

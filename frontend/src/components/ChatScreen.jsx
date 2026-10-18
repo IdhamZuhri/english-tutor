@@ -20,6 +20,7 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
     toast,
     isInitializing,
     processTurn,
+    setRecording,
     endSession,
   } = useSession({ topic, durationSecs, focus, persona, onSessionEnd });
 
@@ -27,17 +28,9 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
-
-  // Auto-start recording when prep time expires
-  const prevPrepRef = useRef(0);
   useEffect(() => {
-    if (prevPrepRef.current === 1 && prepTimeLeft === 0 && appState === 'idle') {
-      if (!isRecording) {
-        startRecording();
-      }
-    }
-    prevPrepRef.current = prepTimeLeft;
-  }, [prepTimeLeft, appState, startRecording, isRecording]);
+    if (!isRecording && appState === 'recording') setRecording(false);
+  }, [isRecording, appState, setRecording]);
 
   // ── BUG FIX: merge recording state from useAudioRecorder with session appState ──
   // appState (from useSession) never reaches 'recording' — that's tracked by
@@ -52,9 +45,11 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
   const handleMicPress = async () => {
     const success = await startRecording();
     if (!success) return;
+    setRecording(true);
   };
 
   const handleMicRelease = async () => {
+    setRecording(false);
     const blob = await stopRecording();
     if (!blob || blob.size < 100) {
       // blob too small = silence; don't bother sending
@@ -145,7 +140,7 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
               : effectiveState === 'speaking'
               ? 'Alex is speaking — mic will re-enable when done'
               : prepTimeLeft > 0
-              ? `Preparation time: 00:${prepTimeLeft.toString().padStart(2, '0')} (Tap mic to skip)`
+              ? `Preparation time: 00:${prepTimeLeft.toString().padStart(2, '0')} · Tap the mic when ready`
               : 'Tap the mic and speak naturally'}
           </p>
           <MicButton
@@ -192,6 +187,19 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
           overflow: hidden;
           position: relative;
           z-index: 1;
+        }
+        @media (max-width: 800px) {
+          .chat-screen { height: 100dvh; }
+          .chat-header { padding: 9px 14px; gap: 8px; }
+          .chat-header-right { width: 100%; justify-content: space-between; gap: 7px; }
+          .chat-header-right .status-badge { max-width: 55%; font-size: .64rem; line-height: 1.2; }
+          .chat-messages { min-height: 0; padding: 16px 12px; }
+          .chat-footer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
+          .chat-footer-inner { gap: 7px; }
+          .chat-hint { font-size: .75rem; }
+          .modal-overlay { padding: 16px; }
+          .modal-box { max-height: calc(100dvh - 32px); overflow-y: auto; padding: 21px; }
+          .modal-actions .btn { flex: 1 1 auto; }
         }
 
         /* Header */

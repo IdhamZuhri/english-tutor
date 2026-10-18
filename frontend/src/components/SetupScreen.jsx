@@ -377,6 +377,15 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
           box-shadow: 0 12px 40px rgba(124,58,237,0.55), 0 0 80px rgba(124,58,237,0.15);
         }
         .btn-icon { display: inline-flex; align-items: center; }
+        @media (max-width: 800px) {
+          .setup-screen { min-height: calc(100dvh - 60px); padding: 30px 18px 60px; gap: 28px; }
+          .setup-hero h1 { font-size: clamp(2rem, 8vw, 3rem); }
+          .setup-subtitle { font-size: .95rem; }
+        }
+        @media (max-width: 390px) {
+          .topic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .setup-section-header { align-items: flex-start; gap: 8px; }
+        }
       `}</style>
     </div>
   );

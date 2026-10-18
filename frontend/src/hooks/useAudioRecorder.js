@@ -15,27 +15,29 @@ export function useAudioRecorder() {
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
   const resolveRef = useRef(null);
+  const startingRef = useRef(false);
+  const releaseStream = () => {
+    streamRef.current?.getTracks().forEach(track => track.stop());
+    streamRef.current = null;
+  };
 
   const startRecording = useCallback(async () => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      console.warn('Already recording, ignoring startRecording call');
-      return true;
-    }
+    if (startingRef.current || mediaRecorderRef.current?.state === 'recording') return false;
+    startingRef.current = true;
 
     setMicError(null);
 
     try {
-      let stream = streamRef.current;
-      if (!stream || stream.active === false) {
-        stream = await navigator.mediaDevices.getUserMedia({
+      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+        throw new Error('Recording is unavailable in this browser. Use a current browser over HTTPS or localhost.');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            sampleRate: 44100,
           },
         });
-        streamRef.current = stream;
-      }
+      streamRef.current = stream;
 
       chunksRef.current = [];
 
@@ -45,7 +47,7 @@ export function useAudioRecorder() {
         'audio/webm',
         'audio/ogg;codecs=opus',
         'audio/mp4',
-      ].find(m => MediaRecorder.isTypeSupported(m)) || '';
+      ].find(m => MediaRecorder.isTypeSupported?.(m)) || '';
 
       const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : {});
       mediaRecorderRef.current = mediaRecorder;
@@ -57,15 +59,25 @@ export function useAudioRecorder() {
       };
 
       mediaRecorder.onstop = () => {
-        // DO NOT stop the stream tracks here! Keep the mic warm.
-        const mimeUsed = mediaRecorder.mimeType || 'audio/webm';
+        setIsRecording(false);
+        const mimeUsed = mediaRecorder.mimeType || chunksRef.current[0]?.type || 'audio/webm';
         const blob = new Blob(chunksRef.current, { type: mimeUsed });
         chunksRef.current = [];
+        releaseStream();
+        mediaRecorderRef.current = null;
 
         if (resolveRef.current) {
           resolveRef.current(blob);
           resolveRef.current = null;
         }
+      };
+      mediaRecorder.onerror = () => {
+        setMicError('Recording was interrupted. Please try again.');
+        releaseStream();
+        mediaRecorderRef.current = null;
+        setIsRecording(false);
+        resolveRef.current?.(null);
+        resolveRef.current = null;
       };
 
       mediaRecorder.start(500); // 500ms chunks is stable
@@ -73,6 +85,7 @@ export function useAudioRecorder() {
       return true;
 
     } catch (err) {
+      releaseStream();
       const isPermission = err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError';
       setMicError(
         isPermission
@@ -80,6 +93,8 @@ export function useAudioRecorder() {
           : `Could not access microphone: ${err.message}`
       );
       return false;
+    } finally {
+      startingRef.current = false;
     }
   }, []);
 
@@ -93,14 +108,19 @@ export function useAudioRecorder() {
       resolveRef.current = resolve;
       setIsRecording(false);
       
-      mediaRecorderRef.current.stop();
+      try { mediaRecorderRef.current.stop(); }
+      catch {
+        releaseStream();
+        mediaRecorderRef.current = null;
+        resolveRef.current = null;
+        resolve(null);
+      }
     });
   }, []);
 
   useEffect(() => () => {
     if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
-    streamRef.current?.getTracks().forEach(track => track.stop());
-    streamRef.current = null;
+    releaseStream();
   }, []);
 
   return {

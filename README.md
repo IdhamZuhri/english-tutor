@@ -28,6 +28,10 @@ npm.cmd start
 
 For frontend development, run `npm.cmd run dev` in another terminal, then open <http://localhost:5173>. Its `/api` requests proxy to the Node server on port 8000.
 
+## Using a phone
+
+The layout switches to a compact navigation menu on narrow screens. Recording must be started with a tap; the app will request microphone permission when you first record. Use a current browser and an HTTPS address when opening SpeakWell on a phone. A plain `http://` address to a computer on your local network is usually not a secure context, so mobile browsers will block microphone access. `http://localhost` works only on the same device running the server. Keep the server available while using conversation, public speaking, or spoken journaling; written journaling also needs the server to save entries.
+
 ## Data and configuration
 
 Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file and `backend/data/journal-audio/` to preserve your history and journal recordings. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-6-luna`. `PORT` can change the server port, but the Windows launcher opens port 8000.

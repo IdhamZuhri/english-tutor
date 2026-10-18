@@ -46,7 +46,7 @@ export default function MicButton({ appState, onPress, onRelease }) {
           isRecording  ? 'Click to stop' :
           isProcessing ? 'Processing your speech...' :
           isSpeaking   ? 'Companion is speaking' :
-          'Hold to speak'
+          'Tap to record'
         }
       >
         {isProcessing ? (

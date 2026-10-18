@@ -103,7 +103,7 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Sidebar activeTab={screen === 'session' ? sessionSource : screen === 'summary' && !isHistoryView ? sessionSource : screen} onTabChange={handleTabChange} />
+      <Sidebar activeTab={screen === 'session' ? sessionSource : screen === 'summary' && !isHistoryView ? sessionSource : screen} onTabChange={handleTabChange} sessionActive={screen === 'session'} />
       
       <main className="main-content">
         {screen === 'home' && <HomeScreen onNavigate={handleTabChange} onViewHistory={handleViewHistory} onViewSpeech={handleViewSpeech} onViewJournal={handleViewJournal} />}
