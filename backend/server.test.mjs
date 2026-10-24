@@ -41,6 +41,7 @@ test('local server serves the app and persists a conversation', async () => {
     const opening = await (await realFetch(`${base}/api/opening?topic=Travel&persona=chill`)).json();
     assert.equal(opening.session_id, 1);
     assert.match(completionPrompts[0][0].content, /relaxed, easygoing friend/);
+    assert.equal((await (await realFetch(`${base}/api/sessions`)).json())[0].has_spoken, false);
 
     const form = new FormData();
     form.append('audio', new Blob([Buffer.alloc(9000)], { type: 'audio/webm' }), 'audio.webm');
@@ -141,6 +142,8 @@ test('local server serves the app and persists a conversation', async () => {
     const sessions = await (await realFetch(`${base}/api/sessions`)).json();
     assert.equal(sessions.length, 1);
     assert.equal(sessions[0].persona, 'chill');
+    assert.equal(sessions[0].has_spoken, true);
+    assert.ok(sessions[0].last_spoke_at);
     const detail = await (await realFetch(`${base}/api/sessions/1`)).json();
     assert.equal(detail.history.length, 3);
     assert.equal(detail.persona, 'chill');

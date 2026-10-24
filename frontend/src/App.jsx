@@ -20,6 +20,7 @@ export default function App() {
   const [screen, setScreen] = useState('home');
   const [sessionSource, setSessionSource] = useState('conversation');
   const [selectedSpeechId, setSelectedSpeechId] = useState(null);
+  const [selectedSpeechMode, setSelectedSpeechMode] = useState('prepared');
   const [selectedJournalId, setSelectedJournalId] = useState(null);
   const [speechFromHistory, setSpeechFromHistory] = useState(false);
   const [journalFromHistory, setJournalFromHistory] = useState(false);
@@ -83,8 +84,8 @@ export default function App() {
     setScreen(isHistoryView ? 'history' : sessionConfig.focus ? 'practice' : 'conversation');
   };
 
-  const handleTabChange = (tabId) => {
-    if (tabId === 'public-speaking') { setSelectedSpeechId(null); setSpeechFromHistory(false); }
+  const handleTabChange = (tabId, speechMode = 'prepared') => {
+    if (tabId === 'public-speaking') { setSelectedSpeechId(null); setSelectedSpeechMode(speechMode); setSpeechFromHistory(false); }
     if (tabId === 'journal') { setSelectedJournalId(null); setJournalFromHistory(false); }
     setScreen(tabId);
   };
@@ -124,7 +125,7 @@ export default function App() {
 
         {screen === 'lessons' && <LessonsScreen />}
 
-        {screen === 'public-speaking' && <PublicSpeakingScreen initialSpeechId={selectedSpeechId} onBackToHistory={speechFromHistory ? () => setScreen('history') : null} />}
+        {screen === 'public-speaking' && <PublicSpeakingScreen key={`${selectedSpeechId || 'new'}-${selectedSpeechMode}`} initialMode={selectedSpeechMode} initialSpeechId={selectedSpeechId} onBackToHistory={speechFromHistory ? () => setScreen('history') : null} />}
         {screen === 'journal' && <JournalScreen initialEntryId={selectedJournalId} onBackToHistory={journalFromHistory ? () => setScreen('history') : null} />}
 
       {screen === 'session' && (
@@ -147,6 +148,7 @@ export default function App() {
             durationSecs={sessionConfig.durationSecs}
             focus={sessionConfig.focus}
             onRestart={handleRestart}
+            onHome={() => handleTabChange('home')}
           />
         )}
       </main>

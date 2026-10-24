@@ -38,6 +38,10 @@ Sessions are stored in `backend/data/sessions.json`, created on first use and ex
 
 The app currently displays text replies. Spoken replies and scored session analysis are not enabled in the current interface.
 
+## Weekly speaking quest
+
+Home shows a weekly goal for speaking practice. Choose 1, 2, 3, or 5 practices per week; the choice is saved in your browser. A conversation counts after you send at least one spoken reply, and a public speaking rehearsal counts after you request and save its review. The progress bar uses your device's local Monday-to-Sunday week and starts fresh each Monday. There is no daily streak or penalty for missing a day.
+
 ## Public speaking
 
 Open **Public Speaking** from the sidebar to rehearse a presentation, story, or persuasive pitch. Choose a challenge or enter your own topic, add up to three cue cards, and set a time goal. After recording, you can listen back and request a transcript-based review with strengths and one specific next step. Past reviews appear on the same page. SpeakWell saves the transcript and feedback in `backend/data/sessions.json`; the audio recording is only kept temporarily in the browser and is not saved. Feedback based on text cannot assess voice, pronunciation, eye contact, or body language.

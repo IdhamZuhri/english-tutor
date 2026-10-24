@@ -3,7 +3,7 @@ import { fetchSessionDetails } from '../services/api.js';
 import ChatBubble from './ChatBubble.jsx';
 import Icon from './Icon.jsx';
 
-export default function SummaryScreen({ history, sessionId, isHistoryView, topic, focus, onRestart }) {
+export default function SummaryScreen({ history, sessionId, isHistoryView, topic, focus, onRestart, onHome }) {
   const [loading, setLoading] = useState(isHistoryView);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -39,6 +39,7 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
             <p className="summary-meta">
               Topic: <strong>{activeTopic}</strong>
             </p>
+            {!isHistoryView && history.some(message => message.role === 'user') && <p className="summary-meta">Your speaking practice counts toward this week's quest. <button type="button" className="summary-quest-link" onClick={onHome}>View progress</button></p>}
           </div>
         </div>
         <button id="new-session-btn" className="btn btn-primary" onClick={onRestart}>
@@ -122,6 +123,8 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
           margin-top: 2px;
         }
         .summary-meta strong { color: var(--text-primary); }
+        .summary-quest-link { border: 0; padding: 0; background: transparent; color: var(--accent-light); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+        .summary-quest-link:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 3px; }
 
         /* Loading & Error */
         .summary-loading, .summary-error {

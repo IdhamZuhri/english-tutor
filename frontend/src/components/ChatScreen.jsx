@@ -163,7 +163,7 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
         <div className="modal-overlay" onClick={() => setShowEndConfirm(false)}>
           <div className="modal-box glass-card" onClick={e => e.stopPropagation()}>
             <h3>End this session?</h3>
-            <p>You'll see your performance summary. Your conversation won't be saved.</p>
+              <p>You'll see your conversation summary. Any spoken replies are already saved and count toward your weekly goal.</p>
             <div className="modal-actions">
               <button className="btn btn-secondary" onClick={() => setShowEndConfirm(false)}>
                 Keep going

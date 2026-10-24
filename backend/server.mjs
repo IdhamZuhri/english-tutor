@@ -322,11 +322,12 @@ async function api(req, res, pathname, searchParams) {
       corrections: Array.isArray(rawCorrections.corrections) ? rawCorrections.corrections.slice(0, 10) : [],
     };
     session.history.push({ role: 'user', content: transcript, corrections }, { role: 'assistant', content: reply });
+    session.last_spoke_at = new Date().toISOString();
     await save();
     return json(res, 200, { transcript, corrections, reply_text: reply, reply_audio_b64: null, tts_fallback: false });
   }
   if (pathname === '/api/sessions' && req.method === 'GET') {
-    return json(res, 200, store.sessions.slice().reverse().map(s => ({ id: s.id, topic: s.topic, persona: validPersona(s.persona), created_at: s.created_at, grammar_score: s.scores?.grammar ?? null, fluency_score: s.scores?.fluency ?? null, vocabulary_score: s.scores?.vocabulary ?? null, pronunciation_score: s.scores?.pronunciation ?? null })));
+    return json(res, 200, store.sessions.slice().reverse().map(s => ({ id: s.id, topic: s.topic, persona: validPersona(s.persona), created_at: s.created_at, last_spoke_at: s.last_spoke_at || null, has_spoken: s.history?.some(message => message.role === 'user') || false, grammar_score: s.scores?.grammar ?? null, fluency_score: s.scores?.fluency ?? null, vocabulary_score: s.scores?.vocabulary ?? null, pronunciation_score: s.scores?.pronunciation ?? null })));
   }
   if (pathname === '/api/practice' && req.method === 'GET') {
     return json(res, 200, practiceInsights(store.sessions, store.practiceAttempts));

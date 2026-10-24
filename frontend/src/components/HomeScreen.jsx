@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { fetchJournalEntries, fetchPastSessions, fetchSpeeches } from '../services/api.js';
 import Icon from './Icon.jsx';
+import { defaultWeeklyGoal, weeklyGoals, weeklySpeakingProgress } from '../weeklyQuest.js';
 import './HomeScreen.css';
 
 const explore = [
@@ -15,6 +16,13 @@ export default function HomeScreen({ onNavigate, onViewHistory, onViewSpeech, on
   const [speeches, setSpeeches] = useState([]);
   const [journalEntries, setJournalEntries] = useState([]);
   const [loaded, setLoaded] = useState(false);
+  const [speakingLoaded, setSpeakingLoaded] = useState(false);
+  const [weeklyGoal, setWeeklyGoal] = useState(() => {
+    try {
+      const saved = Number(localStorage.getItem('speakwell-weekly-goal'));
+      return weeklyGoals.includes(saved) ? saved : defaultWeeklyGoal;
+    } catch { return defaultWeeklyGoal; }
+  });
 
   useEffect(() => {
     let active = true;
@@ -23,10 +31,17 @@ export default function HomeScreen({ onNavigate, onViewHistory, onViewSpeech, on
       if (conversationResult.status === 'fulfilled' && Array.isArray(conversationResult.value)) setSessions(conversationResult.value);
       if (speechResult.status === 'fulfilled' && Array.isArray(speechResult.value)) setSpeeches(speechResult.value);
       if (journalResult.status === 'fulfilled' && Array.isArray(journalResult.value)) setJournalEntries(journalResult.value);
+      setSpeakingLoaded(conversationResult.status === 'fulfilled' && speechResult.status === 'fulfilled');
       setLoaded(true);
     });
     return () => { active = false; };
   }, []);
+
+  const progress = weeklySpeakingProgress(sessions, speeches, weeklyGoal);
+  const changeWeeklyGoal = goal => {
+    setWeeklyGoal(goal);
+    try { localStorage.setItem('speakwell-weekly-goal', String(goal)); } catch { /* Storage may be unavailable. */ }
+  };
 
   const recent = [
     ...sessions.map(item => ({ id: item.id, title: item.topic, type: 'Conversation', date: item.created_at, icon: 'chat', onClick: () => onViewHistory(item.id) })),
@@ -40,6 +55,13 @@ export default function HomeScreen({ onNavigate, onViewHistory, onViewSpeech, on
       <h1>What would you like to practice today?</h1>
       <p>Build confidence through conversation, prepare for the stage, reflect on your day, or take one small step with a lesson.</p>
     </header>
+
+    <section className="home-quest glass-card" aria-labelledby="home-quest-heading">
+      <div className="home-quest-top"><span className="home-eyebrow"><Icon name="award" size={17} /> WEEKLY SPEAKING QUEST</span><span className="home-quest-period">Resets every Monday</span></div>
+      <div className="home-quest-main"><div><h2 id="home-quest-heading">{speakingLoaded && progress.complete ? 'You reached your speaking goal!' : 'Make room for your voice this week'}</h2><p>{speakingLoaded ? progress.complete ? 'You showed up for yourself. Keep speaking whenever you like.' : `${progress.remaining} ${progress.remaining === 1 ? 'practice' : 'practices'} to go. Each conversation or reviewed speech moves you forward.` : loaded ? 'Could not load speaking progress. Try refreshing the page.' : 'Loading your speaking progress…'}</p></div><strong className="home-quest-count" aria-label={speakingLoaded ? `${progress.count} of ${weeklyGoal} speaking practices this week` : undefined}>{speakingLoaded ? `${progress.count}/${weeklyGoal}` : '—'}</strong></div>
+      {speakingLoaded && <div className="home-quest-track" role="progressbar" aria-label="Weekly speaking goal" aria-valuenow={Math.min(progress.count, weeklyGoal)} aria-valuemin="0" aria-valuemax={weeklyGoal}><span style={{ width: `${Math.min(100, progress.count / weeklyGoal * 100)}%` }} /></div>}
+      <div className="home-quest-footer"><div className="home-quest-goals"><span>Weekly goal</span>{weeklyGoals.map(goal => <button key={goal} type="button" className={weeklyGoal === goal ? 'selected' : ''} onClick={() => changeWeeklyGoal(goal)} aria-pressed={weeklyGoal === goal}>{goal}</button>)}</div><div className="home-quest-actions"><button type="button" onClick={() => onNavigate('conversation')}>Start a conversation</button><button type="button" onClick={() => onNavigate('public-speaking', 'impromptu')}>Try a surprise topic <span aria-hidden="true">→</span></button></div></div>
+    </section>
 
     <section className="home-feature-section" aria-labelledby="home-start-heading">
       <div className="home-section-heading"><span>START HERE</span><h2 id="home-start-heading">Choose your way to speak</h2></div>
