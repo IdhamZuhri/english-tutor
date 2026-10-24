@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
 import { useAudioRecorder } from '../hooks/useAudioRecorder.js';
-import { fetchSpeech, fetchSpeeches, submitSpeech } from '../services/api.js';
+import { fetchSpeech, fetchSpeeches, fetchSurpriseTopic, submitSpeech } from '../services/api.js';
 import './PublicSpeakingScreen.css';
 
 const challenges = [
@@ -19,6 +19,9 @@ const formatTime = seconds => `${Math.floor(seconds / 60).toString().padStart(2,
 export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToHistory = null }) {
   const [step, setStep] = useState('prepare');
   const [format, setFormat] = useState('Presentation');
+  const [mode, setMode] = useState('prepared');
+  const [spinning, setSpinning] = useState(false);
+  const [seenTopics, setSeenTopics] = useState([]);
   const [title, setTitle] = useState('');
   const [outline, setOutline] = useState(['', '', '']);
   const [target, setTarget] = useState(2);
@@ -32,6 +35,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const recordingRef = useRef(false);
+  const topicRequestRef = useRef(0);
   const { isRecording, micError, startRecording, stopRecording } = useAudioRecorder();
 
   useEffect(() => {
@@ -39,7 +43,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
   }, []);
   useEffect(() => {
     if (!initialSpeechId) return;
-    fetchSpeech(initialSpeechId).then(speech => { setResult(speech); setStep('result'); }).catch(err => setError(err.message));
+    fetchSpeech(initialSpeechId).then(speech => { setResult(speech); setMode(speech.format === 'Impromptu' ? 'impromptu' : 'prepared'); setTitle(speech.title); setFormat(speech.format); setStep('result'); }).catch(err => setError(err.message));
   }, [initialSpeechId]);
   useEffect(() => {
     if (!isRecording) return undefined;
@@ -52,6 +56,26 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
     setTitle(challenge.title);
     setFormat(challenge.format);
     setOutline(['', '', '']);
+  };
+  const chooseMode = next => {
+    topicRequestRef.current++;
+    setSpinning(false);
+    setMode(next);
+    setTitle('');
+    setFormat(next === 'impromptu' ? 'Impromptu' : 'Presentation');
+    setOutline(['', '', '']);
+  };
+  const spinTopic = async () => {
+    const request = ++topicRequestRef.current;
+    setSpinning(true);
+    setError('');
+    try {
+      const topic = await fetchSurpriseTopic(seenTopics);
+      if (request !== topicRequestRef.current) return;
+      setTitle(topic);
+      setSeenTopics(current => [...current.slice(-11), topic]);
+    } catch (err) { if (request === topicRequestRef.current) setError(err.message); }
+    finally { if (request === topicRequestRef.current) setSpinning(false); }
   };
   const updateOutline = (index, value) => setOutline(current => current.map((item, i) => i === index ? value : item));
   const begin = async () => {
@@ -82,6 +106,11 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
     setAudioUrl(URL.createObjectURL(blob));
     setStep('review');
   };
+  useEffect(() => {
+    if (mode !== 'impromptu' || step !== 'rehearse') return undefined;
+    const timeout = setTimeout(finish, Math.max(0, startedAt + target * 60_000 - Date.now()));
+    return () => clearTimeout(timeout);
+  }, [mode, step, startedAt, target]);
   const getFeedback = async () => {
     if (!audioBlob || busy) return;
     setBusy(true);
@@ -97,7 +126,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
   const openRecent = async id => {
     setBusy(true);
     setError('');
-    try { setResult(await fetchSpeech(id)); setStep('result'); }
+    try { const speech = await fetchSpeech(id); setResult(speech); setMode(speech.format === 'Impromptu' ? 'impromptu' : 'prepared'); setTitle(speech.title); setFormat(speech.format); setStep('result'); }
     catch (err) { setError(err.message); }
     finally { setBusy(false); }
   };
@@ -106,6 +135,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
     setAudioBlob(null);
     setAudioUrl('');
     setError('');
+    if (mode === 'impromptu') setTitle('');
     setStep('prepare');
   };
 
@@ -123,6 +153,12 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
     {(error || micError) && <div className="speech-error" role="alert">{error || micError}</div>}
 
     {step === 'prepare' && <>
+      <div className="speech-mode-switch" aria-label="Speaking practice mode">
+        <button type="button" className={`speech-chip ${mode === 'prepared' ? 'selected' : ''}`} onClick={() => chooseMode('prepared')}>Prepared speech</button>
+        <button type="button" className={`speech-chip ${mode === 'impromptu' ? 'selected' : ''}`} onClick={() => chooseMode('impromptu')}>Surprise topic</button>
+      </div>
+      {mode === 'impromptu' && <section className="speech-section speech-surprise glass-card"><span className="speech-eyebrow">SPIN A TOPIC</span><h2>Speak on the spot</h2><p>Get a random AI topic, then speak freely until the timer ends. Try to explain your point with reasons and an example.</p><button type="button" className="btn btn-secondary" onClick={spinTopic} disabled={spinning}>{spinning ? 'Finding a topic…' : title ? 'Spin again' : 'Spin for a topic'}</button>{title && <div className="speech-surprise-topic" aria-live="polite"><small>YOUR TOPIC</small><strong>{title}</strong></div>}</section>}
+      {mode === 'prepared' && <>
       <section className="speech-section">
         <div className="speech-section-title"><span>01 / YOUR STAGE</span><h2>What will you speak about?</h2><p>Start with a challenge or write your own topic.</p></div>
         <div className="speech-challenges">{challenges.map(challenge => <button type="button" key={challenge.title} className={`speech-challenge glass-card ${title === challenge.title ? 'selected' : ''}`} onClick={() => chooseChallenge(challenge)}><span className="speech-challenge-icon"><Icon name={challenge.icon} size={24} /></span><strong>{challenge.title}</strong><small>{challenge.hint}</small><span className="speech-challenge-format">{challenge.format}</span></button>)}</div>
@@ -137,11 +173,12 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, onBackToH
         <div className="speech-format-row" aria-label="Speech format">{Object.keys(formatTips).map(option => <button type="button" key={option} className={`speech-chip ${format === option ? 'selected' : ''}`} onClick={() => setFormat(option)}>{option}</button>)}</div>
         <div className="speech-outline">{['Opening', 'Main point', 'Closing'].map((label, index) => <label key={label} className="speech-outline-card"><span className="speech-outline-number">{index + 1}</span><span className="speech-outline-copy"><strong>{label}</strong><small>{formatTips[format][index]}</small></span><span className="speech-outline-entry"><textarea rows="2" value={outline[index]} maxLength={180} onChange={event => updateOutline(index, event.target.value)} placeholder={index === 0 ? 'How will you begin?' : index === 1 ? 'What matters most?' : 'What should people remember?'} /><small>{outline[index].length}/180</small></span></label>)}</div>
       </section>
-      <div className="speech-launch glass-card"><div><strong>Ready to take the stage?</strong><p>Choose a goal. The timer helps you pace yourself; you can stop whenever you like.</p><div className="speech-format-row">{[1, 2, 3, 5].map(minutes => <button type="button" key={minutes} className={`speech-chip ${target === minutes ? 'selected' : ''}`} onClick={() => setTarget(minutes)}>{minutes} min</button>)}</div></div><button type="button" className="btn btn-primary btn-lg" disabled={!title.trim()} onClick={begin}><Icon name="mic" size={18} /> Start rehearsal</button></div>
+      </>}
+      <div className="speech-launch glass-card"><div><strong>Ready to take the stage?</strong><p>{mode === 'impromptu' ? 'Choose how long to speak. Recording ends when the time runs out, or you can finish early.' : 'Choose a goal. The timer helps you pace yourself; you can stop whenever you like.'}</p><div className="speech-format-row">{[1, 2, 3, 5].map(minutes => <button type="button" key={minutes} className={`speech-chip ${target === minutes ? 'selected' : ''}`} onClick={() => setTarget(minutes)}>{minutes} min</button>)}</div></div><button type="button" className="btn btn-primary btn-lg" disabled={!title.trim() || spinning} onClick={begin}><Icon name="mic" size={18} /> {mode === 'impromptu' ? 'Start speaking' : 'Start rehearsal'}</button></div>
       {recent.length > 0 && <section className="speech-recent"><div className="speech-section-title"><span>YOUR MOMENTUM</span><h2>Past rehearsals</h2></div><div className="speech-recent-list">{recent.slice(0, 4).map(item => <button type="button" className="speech-recent-row glass-card" key={item.id} onClick={() => openRecent(item.id)} disabled={busy}><span className="speech-recent-icon"><Icon name="podium" size={20} /></span><span><strong>{item.title}</strong><small>{item.format} · {new Date(item.created_at).toLocaleDateString()}</small></span><span aria-hidden="true">→</span></button>)}</div></section>}
     </>}
 
-    {step === 'rehearse' && <section className="speech-stage glass-card"><span className="speech-live"><span /> RECORDING</span><h2>{title}</h2><p>{format} · Aim for {target} {target === 1 ? 'minute' : 'minutes'}</p><div className="speech-timer" aria-live="off">{formatTime(elapsed)}</div><div className="speech-timebar"><span style={{ width: `${Math.min(100, elapsed / (target * 60) * 100)}%` }} /></div><p className="speech-timehint">{elapsed >= target * 60 ? 'You reached your goal. Finish whenever you are ready.' : 'Take your time. Pause between ideas.'}</p><button type="button" className="speech-cue-toggle" onClick={() => setShowCues(value => !value)} aria-expanded={showCues}>{showCues ? 'Hide' : 'Show'} cue cards</button>{showCues && <div className="speech-cues">{['Opening', 'Main point', 'Closing'].map((label, index) => <div key={label}><small>{label}</small><strong>{outline[index] || formatTips[format][index]}</strong></div>)}</div>}<button type="button" className="btn btn-primary btn-lg" onClick={finish}><Icon name="check" size={18} /> Finish rehearsal</button></section>}
+    {step === 'rehearse' && <section className="speech-stage glass-card"><span className="speech-live"><span /> RECORDING</span><h2>{title}</h2><p>{mode === 'impromptu' ? `Surprise topic · ${target} ${target === 1 ? 'minute' : 'minutes'} to speak` : `${format} · Aim for ${target} ${target === 1 ? 'minute' : 'minutes'}`}</p><div className="speech-timer" aria-live="off">{formatTime(mode === 'impromptu' ? Math.max(0, target * 60 - elapsed) : elapsed)}</div><div className="speech-timebar"><span style={{ width: `${Math.min(100, elapsed / (target * 60) * 100)}%` }} /></div><p className="speech-timehint">{mode === 'impromptu' ? 'Keep going with a reason, example, or another angle. Recording stops when time is up.' : elapsed >= target * 60 ? 'You reached your goal. Finish whenever you are ready.' : 'Take your time. Pause between ideas.'}</p>{mode === 'prepared' && <><button type="button" className="speech-cue-toggle" onClick={() => setShowCues(value => !value)} aria-expanded={showCues}>{showCues ? 'Hide' : 'Show'} cue cards</button>{showCues && <div className="speech-cues">{['Opening', 'Main point', 'Closing'].map((label, index) => <div key={label}><small>{label}</small><strong>{outline[index] || formatTips[format][index]}</strong></div>)}</div>}</>}<button type="button" className="btn btn-primary btn-lg" onClick={finish}><Icon name="check" size={18} /> {mode === 'impromptu' ? 'Finish early' : 'Finish rehearsal'}</button></section>}
 
     {step === 'review' && <section className="speech-review glass-card"><span className="speech-eyebrow">REHEARSAL COMPLETE</span><h2>You showed up and spoke.</h2><p>Listen back if you like, then get feedback on your words and structure.</p><div className="speech-review-meta"><span><Icon name="history" size={17} /> {formatTime(elapsed)} spoken</span><span><Icon name="mic" size={17} /> {title}</span></div>{audioUrl && <audio controls src={audioUrl} aria-label="Play your rehearsal recording" />}<div className="speech-actions"><button type="button" className="btn btn-secondary" onClick={reset}>Start over</button><button type="button" className="btn btn-primary" disabled={busy} onClick={getFeedback}>{busy ? 'Reviewing your speech…' : 'Get my feedback'}</button></div><small>Your recording stays in this browser until you leave this screen. Only the transcript and feedback are saved.</small></section>}
 

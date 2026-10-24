@@ -42,6 +42,8 @@ The app currently displays text replies. Spoken replies and scored session analy
 
 Open **Public Speaking** from the sidebar to rehearse a presentation, story, or persuasive pitch. Choose a challenge or enter your own topic, add up to three cue cards, and set a time goal. After recording, you can listen back and request a transcript-based review with strengths and one specific next step. Past reviews appear on the same page. SpeakWell saves the transcript and feedback in `backend/data/sessions.json`; the audio recording is only kept temporarily in the browser and is not saved. Feedback based on text cannot assess voice, pronunciation, eye contact, or body language.
 
+For spontaneous speaking practice, choose **Surprise topic** and spin for an AI-generated prompt. Select 1, 2, 3, or 5 minutes and speak freely; the recording ends when time runs out. The review focuses on how clearly you develop your idea with reasons and examples. You can spin again before starting or finish early.
+
 ## Daily journal
 
 Open **Daily Journal** to make a guided reflection, answer a few gentle follow-up questions, or journal freely. Write or record each response, and mix both in one entry. Choose a mood, review or edit your text, and save. Entries are organized by date; spoken responses include replayable audio. **Check grammar** is optional and runs only when selected. Journal text is saved in `backend/data/sessions.json` and recordings in `backend/data/journal-audio/`. Audio is sent to OpenAI only for transcription; journal text is sent for follow-up questions and optional grammar review.

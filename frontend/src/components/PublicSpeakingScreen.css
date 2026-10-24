@@ -11,6 +11,13 @@
 .speech-step--active span { border-color: var(--accent-border); background: var(--accent-dim); }
 .speech-error { padding: 13px 17px; margin-bottom: 22px; border: 1px solid rgba(239,68,68,.4); border-radius: 12px; background: rgba(239,68,68,.1); color: #fca5a5; }
 .speech-section { margin-bottom: 34px; }
+.speech-mode-switch { display: flex; flex-wrap: wrap; gap: 9px; margin: -15px 0 26px; }
+.speech-surprise { padding: clamp(24px, 4vw, 38px); background: linear-gradient(115deg, rgba(124,58,237,.16), rgba(56,189,248,.04)); }
+.speech-surprise h2 { margin: 9px 0; }
+.speech-surprise > p { max-width: 620px; margin: 0 0 22px; color: var(--text-secondary); }
+.speech-surprise-topic { display: grid; gap: 5px; margin-top: 24px; padding: 20px; border: 1px solid var(--accent-border); border-radius: 14px; background: var(--accent-dim); }
+.speech-surprise-topic small { color: var(--accent-light); font-size: .7rem; font-weight: 800; letter-spacing: .1em; }
+.speech-surprise-topic strong { font-size: clamp(1.15rem, 2.5vw, 1.5rem); line-height: 1.4; }
 .speech-section-title { margin-bottom: 20px; }
 .speech-section-title h2 { margin: 5px 0 3px; }
 .speech-challenges { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; margin-bottom: 22px; }

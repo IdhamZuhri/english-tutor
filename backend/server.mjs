@@ -229,6 +229,21 @@ async function api(req, res, pathname, searchParams) {
   if (pathname === '/api/speeches' && req.method === 'GET') {
     return json(res, 200, store.speeches.slice().reverse().map(({ id, title, format, durationSecs, created_at, feedback }) => ({ id, title, format, durationSecs, created_at, headline: feedback.headline })));
   }
+  if (pathname === '/api/speeches/topic' && req.method === 'POST') {
+    let body;
+    try { body = JSON.parse((await bodyBytes(req, 5000)).toString('utf8')); }
+    catch { return json(res, 400, { detail: 'Invalid topic request' }); }
+    const recentTopics = Array.isArray(body?.recentTopics) ? body.recentTopics.filter(value => typeof value === 'string').slice(-12).map(value => value.slice(0, 120)) : [];
+    const themes = ['everyday life', 'travel and places', 'technology', 'community', 'learning', 'food and culture', 'work and goals', 'imagination'];
+    const theme = themes[Math.floor(Math.random() * themes.length)];
+    const raw = await complete([
+      { role: 'system', content: 'Create one fresh, accessible English speaking topic for a learner to talk about freely for 1 to 5 minutes. Make it specific enough to invite an opinion, reasons, and examples, but open enough for different answers. Return JSON with a single topic string (a short question, at most 120 characters). No instructions, answers, or sensitive personal questions.' },
+      { role: 'user', content: JSON.stringify({ theme, avoid: recentTopics }) },
+    ], true);
+    const topic = String(raw.topic || '').trim().slice(0, 120);
+    if (!topic) return json(res, 502, { detail: 'Could not generate a topic. Please try again.' });
+    return json(res, 200, { topic });
+  }
   if (pathname === '/api/speeches' && req.method === 'POST') {
     const bytes = await bodyBytes(req, 25_000_000);
     const form = await new Request('http://localhost/', { method: 'POST', headers: { 'content-type': req.headers['content-type'] || '' }, body: bytes }).formData();
@@ -237,7 +252,7 @@ async function api(req, res, pathname, searchParams) {
     const format = String(form.get('format') || '').trim().slice(0, 40);
     const outline = String(form.get('outline') || '').trim().slice(0, 1200);
     const durationSecs = Number(form.get('durationSecs'));
-    if (!title || !['Presentation', 'Storytelling', 'Persuasive pitch'].includes(format) || !Number.isFinite(durationSecs) || durationSecs < 5 || durationSecs > 900 || !audio || typeof audio.arrayBuffer !== 'function' || audio.size < 8000) {
+    if (!title || !['Presentation', 'Storytelling', 'Persuasive pitch', 'Impromptu'].includes(format) || !Number.isFinite(durationSecs) || durationSecs < 5 || durationSecs > 900 || !audio || typeof audio.arrayBuffer !== 'function' || audio.size < 8000) {
       return json(res, 400, { detail: 'Record at least a few seconds and complete the speech details.' });
     }
     const audioForm = new FormData();
@@ -250,7 +265,7 @@ async function api(req, res, pathname, searchParams) {
     const fillerCount = (transcript.match(/\b(um|uh|erm|you know|like)\b/gi) || []).length;
     const pace = Math.round(words.length / (durationSecs / 60));
     const raw = await complete([
-      { role: 'system', content: 'You are a supportive public speaking coach. Assess only the supplied transcript and outline. Return JSON with headline (one short encouraging sentence), strengths (array of 1-2 specific observations), nextStep (one concrete action for the next rehearsal), and openingSuggestion (one optional improved opening sentence). Do not claim to assess vocal delivery, eye contact, body language, confidence, or pronunciation. Avoid numeric scores.' },
+      { role: 'system', content: `You are a supportive public speaking coach. Assess only the supplied transcript, topic, and outline. ${format === 'Impromptu' ? 'This is an unprepared response to a random topic. Focus on whether the learner develops a clear idea with relevant reasons, details, or examples. Suggest one concrete way to elaborate further.' : 'Focus on the structure and clarity of the prepared speech.'} Return JSON with headline (one short encouraging sentence), strengths (array of 1-2 specific observations), nextStep (one concrete action for the next rehearsal), and openingSuggestion (one optional improved opening sentence). Do not claim to assess vocal delivery, eye contact, body language, confidence, or pronunciation. Avoid numeric scores.` },
       { role: 'user', content: JSON.stringify({ title, format, outline, transcript }) },
     ], true);
     const feedback = {

@@ -18,6 +18,7 @@ test('local server serves the app and persists a conversation', async () => {
     const request = JSON.parse(options.body);
     completionPrompts.push(request.messages);
     if (request.response_format) {
+      if (request.messages[0]?.content?.includes('Create one fresh, accessible English speaking topic')) return Response.json({ choices: [{ message: { content: JSON.stringify({ topic: 'Should every town have a public garden?' }) } }] });
       const isSpeech = request.messages[0]?.content?.includes('public speaking coach');
       const isJournalGrammar = request.messages[0]?.content?.includes('supportive English editor');
       return Response.json({ choices: [{ message: { content: JSON.stringify(isSpeech
@@ -64,6 +65,10 @@ test('local server serves the app and persists a conversation', async () => {
 
     const invalidSpeech = await realFetch(`${base}/api/speeches`, { method: 'POST', body: new FormData() });
     assert.equal(invalidSpeech.status, 400);
+    const topicResponse = await realFetch(`${base}/api/speeches/topic`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ recentTopics: ['Why learn to cook?'] }) });
+    assert.equal(topicResponse.status, 200);
+    assert.equal((await topicResponse.json()).topic, 'Should every town have a public garden?');
+    assert.ok(completionPrompts.some(messages => messages[0]?.content?.includes('Create one fresh, accessible English speaking topic') && messages[1]?.content?.includes('Why learn to cook?')));
     const speechForm = new FormData();
     speechForm.append('audio', new Blob([Buffer.alloc(9000)], { type: 'audio/webm' }), 'speech.webm');
     speechForm.append('title', 'My first presentation');
@@ -77,6 +82,16 @@ test('local server serves the app and persists a conversation', async () => {
     assert.equal(speech.feedback.nextStep, 'Add one concrete example.');
     assert.equal((await (await realFetch(`${base}/api/speeches`)).json())[0].title, 'My first presentation');
     assert.equal((await (await realFetch(`${base}/api/speeches/${speech.id}`)).json()).transcript, 'I go to school yesterday.');
+    const impromptuForm = new FormData();
+    impromptuForm.append('audio', new Blob([Buffer.alloc(9000)], { type: 'audio/webm' }), 'speech.webm');
+    impromptuForm.append('title', 'Should every town have a public garden?');
+    impromptuForm.append('format', 'Impromptu');
+    impromptuForm.append('outline', '');
+    impromptuForm.append('durationSecs', '60');
+    const impromptuResponse = await realFetch(`${base}/api/speeches`, { method: 'POST', body: impromptuForm });
+    assert.equal(impromptuResponse.status, 201);
+    assert.equal((await impromptuResponse.json()).format, 'Impromptu');
+    assert.ok(completionPrompts.some(messages => messages[0]?.content?.includes('unprepared response to a random topic')));
 
     const journalAudio = new Blob([Buffer.alloc(9000)], { type: 'audio/webm' });
     const transcriptionForm = new FormData();
@@ -134,7 +149,7 @@ test('local server serves the app and persists a conversation', async () => {
     const saved = JSON.parse(await readFile(dataFile, 'utf8'));
     assert.equal(saved.sessions[0].history.length, 3);
     assert.equal(saved.practiceAttempts.length, 1);
-    assert.equal(saved.speeches.length, 1);
+    assert.equal(saved.speeches.length, 2);
     assert.equal(saved.journalEntries.length, 3);
     assert.equal(saved.journalEntries[0].grammar.suggestions.length, 1);
   } finally {

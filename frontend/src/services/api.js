@@ -42,6 +42,16 @@ export async function fetchSpeeches() {
   return res.json();
 }
 
+export async function fetchSurpriseTopic(recentTopics = []) {
+  const res = await fetch(`${BASE}/speeches/topic`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ recentTopics }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.detail || 'Could not spin a topic. Please try again.');
+  return data.topic;
+}
+
 export async function fetchSpeech(id) {
   const res = await fetch(`${BASE}/speeches/${id}`);
   if (!res.ok) throw new Error('Could not load this rehearsal.');
