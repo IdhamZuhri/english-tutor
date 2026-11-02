@@ -24,6 +24,9 @@ const paths = {
   podium: <><path d="M4 21h16M8 21V9h8v12M5 9h14V5H5zM12 5V2" /></>,
   spark: <><path d="m12 2 1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8L12 2ZM19 17l.7 2.3L22 20l-2.3.7L19 23l-.7-2.3L16 20l2.3-.7L19 17Z" /></>,
   journal: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 3v18M11 8h6M11 12h5M11 16h4" /></>,
+  lightbulb: <><path d="M9 18h6M10 22h4M8 14.5A7 7 0 1 1 16 14c-.8.7-1 1.4-1 2H9c0-.6-.3-1.1-1-1.5Z" /><path d="M12 3v1" /></>,
+  plus: <><path d="M12 5v14M5 12h14" /></>,
+  more: <><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none" /></>,
 };
 
 export default function Icon({ name, size = 20, className = '' }) {

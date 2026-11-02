@@ -1,0 +1,25 @@
+.idea-board-screen { width: min(100%, 980px); margin: 0 auto; padding: 66px 38px 90px; }
+.idea-board-header { margin-bottom: 30px; }
+.idea-board-eyebrow { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-light); font-size: .73rem; font-weight: 800; letter-spacing: .14em; }
+.idea-board-header h1 { margin: 13px 0 9px; font-size: clamp(2.2rem, 5vw, 3.5rem); letter-spacing: -.06em; }
+.idea-board-header p { color: var(--text-secondary); font-size: 1rem; }
+.idea-add-form { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; padding: 13px; }
+.idea-add-form input { flex: 1; min-width: 0; }
+.idea-add-form select { width: 170px; padding: 12px; border: 1px solid var(--border-default); border-radius: var(--radius-md); background: var(--bg-input); color: var(--text-primary); font: inherit; }
+.idea-add-form select option { background: var(--bg-elevated); }
+.idea-add-form .btn { padding: 11px 18px; }
+.idea-simple-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.idea-simple-card { min-height: 270px; padding: 23px; }
+.idea-simple-heading { display: flex; align-items: flex-start; gap: 13px; padding-bottom: 18px; border-bottom: 1px solid var(--border-subtle); }
+.idea-simple-icon { display: grid; place-items: center; width: 38px; height: 38px; flex: none; border-radius: 11px; }
+.idea-simple-icon--improvement { color: #a7f3d0; background: rgba(16, 185, 129, .15); }
+.idea-simple-icon--idea { color: #ddd0ff; background: var(--accent-dim); }
+.idea-simple-heading h2 { font-size: 1.15rem; }
+.idea-simple-heading p { margin-top: 3px; color: var(--text-secondary); font-size: .78rem; }
+.idea-simple-card ul { display: grid; gap: 2px; margin-top: 13px; list-style: none; }
+.idea-simple-card li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 11px 4px; color: #d3dae7; font-size: .88rem; line-height: 1.45; }
+.idea-simple-card li + li { border-top: 1px solid rgba(255,255,255,.05); }
+.idea-simple-card li button { display: grid; place-items: center; flex: none; padding: 2px; border: 0; background: transparent; color: var(--text-muted); cursor: pointer; }
+.idea-simple-card li button:hover { color: #fca5a5; }
+.idea-list-empty { margin-top: 22px; color: var(--text-muted); font-size: .85rem; }
+@media (max-width: 700px) { .idea-board-screen { padding: 40px 20px 70px; }.idea-add-form { align-items: stretch; flex-direction: column; }.idea-add-form select, .idea-add-form .btn { width: 100%; }.idea-simple-grid { grid-template-columns: 1fr; } }

@@ -10,6 +10,7 @@ import LessonsScreen from './components/LessonsScreen.jsx';
 import PublicSpeakingScreen from './components/PublicSpeakingScreen.jsx';
 import HomeScreen from './components/HomeScreen.jsx';
 import JournalScreen from './components/JournalScreen.jsx';
+import IdeaBoardScreen from './components/IdeaBoardScreen.jsx';
 import { validPersona } from './personas.js';
 
 /**
@@ -124,6 +125,8 @@ export default function App() {
         {screen === 'channels' && <ChannelsScreen />}
 
         {screen === 'lessons' && <LessonsScreen />}
+
+        {screen === 'ideas' && <IdeaBoardScreen />}
 
         {screen === 'public-speaking' && <PublicSpeakingScreen key={`${selectedSpeechId || 'new'}-${selectedSpeechMode}`} initialMode={selectedSpeechMode} initialSpeechId={selectedSpeechId} onBackToHistory={speechFromHistory ? () => setScreen('history') : null} />}
         {screen === 'journal' && <JournalScreen initialEntryId={selectedJournalId} onBackToHistory={journalFromHistory ? () => setScreen('history') : null} />}
