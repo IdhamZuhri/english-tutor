@@ -17,3 +17,6 @@ dist/
 build/
 .npm
 backend/data/
+
+# Graphify (rebuild with /graphify . --update)
+graphify-out/
