@@ -31,13 +31,14 @@ export default function ChatBubble({ message }) {
         {isUser && hasCorrections && (
           <div className="correction-panel animate-in">
             <button
+              type="button"
               className="correction-toggle"
               onClick={() => setShowCorrections(v => !v)}
               aria-expanded={showCorrections}
             >
               <span className="correction-icon"><Icon name="edit" size={15} /></span>
               <span>{corrections.corrections.length} correction{corrections.corrections.length > 1 ? 's' : ''}</span>
-              <span className="correction-chevron">{showCorrections ? '▴' : '▾'}</span>
+              <span className="correction-chevron" aria-hidden="true">{showCorrections ? '▴' : '▾'}</span>
             </button>
 
             {showCorrections && (

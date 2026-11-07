@@ -170,6 +170,9 @@ export default function TopicWheel({ spinning, activeIndex, onSpin, disabled, ha
         })}
       </div>}
     </div>
-    <p className="topic-wheel-hint">{spinning ? 'Round and round it goes…' : 'Tip: grab the wheel and flick it to spin.'}</p>
+    <p className="topic-wheel-hint">{spinning ? 'Round and round it goes…' : idle && hovered !== null ? `${WHEEL_THEMES[hovered].emoji} ${WHEEL_THEMES[hovered].label}` : 'Tip: grab the wheel and flick it to spin.'}</p>
+    <ul className="topic-wheel-legend" aria-label="Themes on the wheel">
+      {WHEEL_THEMES.map((item, i) => <li key={item.theme} className={winner === i ? 'is-winner' : ''}><span className="topic-wheel-legend-dot" style={{ background: item.color }} aria-hidden="true" />{item.label}</li>)}
+    </ul>
   </div>;
 }

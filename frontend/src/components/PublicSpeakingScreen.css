@@ -3,7 +3,7 @@
 .speech-eyebrow, .speech-section-title > span { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-light); font-size: .74rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .speech-header h1 { max-width: 720px; margin: 14px 0 12px; font-size: clamp(2.15rem, 4.5vw, 3.5rem); letter-spacing: -.055em; }
 .speech-header p, .speech-section-title p { color: var(--text-secondary); }
-.speech-steps { display: flex; align-items: center; gap: 10px; margin-bottom: 42px; }
+.speech-steps { display: flex; align-items: center; gap: 10px; margin-bottom: 42px; list-style: none; }
 .speech-step { display: flex; align-items: center; gap: 9px; color: var(--text-muted); font-size: .8rem; font-weight: 700; }
 .speech-step:not(:last-child)::after { content: ''; width: clamp(16px, 5vw, 55px); height: 1px; margin-left: 5px; background: var(--border-strong); }
 .speech-step span { display: grid; place-items: center; width: 24px; height: 24px; border: 1px solid var(--border-strong); border-radius: 50%; font-size: .7rem; }
@@ -158,6 +158,10 @@
 .topic-wheel-burst span:nth-child(3n) { width: 9px; height: 9px; border-radius: 50%; }
 .topic-wheel-hint { margin: 16px 0 0; color: var(--text-secondary); font-size: .82rem; text-align: center; }
 .topic-wheel-status { margin: 6px 0 0; color: var(--text-secondary); text-align: center; }
+.topic-wheel-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px; max-width: 420px; margin: 12px auto 0; padding: 0; list-style: none; color: var(--text-secondary); font-size: .75rem; }
+.topic-wheel-legend li { display: inline-flex; align-items: center; gap: 6px; transition: color .2s; }
+.topic-wheel-legend li.is-winner { color: var(--text-primary); font-weight: 700; }
+.topic-wheel-legend-dot { width: 9px; height: 9px; flex: none; border-radius: 50%; }
 .speech-surprise-topic { animation: topic-wheel-reveal .5s cubic-bezier(.3,1.4,.5,1); }
 @keyframes topic-wheel-breathe { 50% { transform: scale(1.06); opacity: .75; } }
 @keyframes topic-wheel-twinkle { 50% { opacity: .95; } }

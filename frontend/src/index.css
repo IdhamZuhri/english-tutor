@@ -3,11 +3,13 @@
    Dark, premium, glassmorphism aesthetic
 ═══════════════════════════════════════════════════════ */
 
-/* ── Google Fonts ── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+/* Inter is loaded once from index.html (a second @import here blocked rendering). */
 
 /* ── Design Tokens ── */
 :root {
+  /* Native controls (select menus, scrollbars, audio players) follow the dark theme. */
+  color-scheme: dark;
+
   /* Colors — Background */
   --bg-base:        #04050f;
   --bg-surface:     #080a1a;
@@ -37,7 +39,7 @@
   /* Colors — Text */
   --text-primary:   #f1f5f9;
   --text-secondary: #94a3b8;
-  --text-muted:     #475569;
+  --text-muted:     #7c8aa0; /* 5.8:1 on --bg-base; #475569 was 2.7:1 and failed WCAG AA */
   --text-accent:    #a78bfa;
 
   /* Colors — Status */
@@ -211,7 +213,7 @@ body {
   align-items: center;
 }
 .sidebar-copy { display: grid; min-width: 0; gap: 1px; }
-.sidebar-copy small { color: var(--text-secondary); font-size: .68rem; font-weight: 500; line-height: 1.35; }
+.sidebar-copy small { color: var(--text-secondary); font-size: .72rem; font-weight: 500; line-height: 1.35; }
 .sidebar-btn:focus-visible { outline: 2px solid var(--accent-light); outline-offset: 2px; }
 
 /* The main destinations echo the colors of their cards on Home. */
@@ -642,3 +644,32 @@ input[type="range"]::-moz-range-thumb {
 .w-full      { width: 100%; }
 .relative    { position: relative; }
 .z-10        { z-index: 10; }
+
+/* Visually hidden but available to screen readers (used by several screens). */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+/* ── Keyboard focus ──
+   One visible ring for every interactive control. Screens may still refine it
+   (e.g. the journal's warm ring); this guarantees nothing is left without one. */
+:where(button, a, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
+}
+
+/* ── Reduced motion ──
+   Respect the OS setting: stop decorative loops (background pulse, floating
+   icons, pulse rings) and make transitions effectively instant. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  body::before { animation: none; }
+  /* Loading spinners carry meaning ("still working"), so they keep turning, slowly. */
+  .spinner, .mic-spinner, .topic-wheel-hub:disabled span {
+    animation-duration: 1.6s !important;
+    animation-iteration-count: infinite !important;
+  }
+}

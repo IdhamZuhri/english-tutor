@@ -48,6 +48,7 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
           <h3>Choose a Topic</h3>
           <button
             id="toggle-custom-topic"
+            type="button"
             className={`btn btn-ghost btn-sm ${useCustom ? 'active-toggle' : ''}`}
             onClick={() => { setUseCustom(v => !v); setSelectedTopic(null); }}
           >
@@ -58,6 +59,7 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
 
         {useCustom ? (
           <div className="custom-topic-wrap animate-in">
+            <label htmlFor="custom-topic-input" className="sr-only">Your own conversation topic</label>
             <input
               id="custom-topic-input"
               type="text"
@@ -74,11 +76,13 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
             )}
           </div>
         ) : (
-          <div className="topic-grid animate-in">
+          <div className="topic-grid animate-in" role="group" aria-label="Conversation topics">
             {TOPICS.map(topic => (
               <button
                 key={topic.id}
                 id={`topic-${topic.id}`}
+                type="button"
+                aria-pressed={selectedTopic === topic.id}
                 className={`topic-card glass-card glass-card-hover ${selectedTopic === topic.id ? 'topic-card--selected' : ''}`}
                 onClick={() => setSelectedTopic(topic.id)}
               >
@@ -119,8 +123,8 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
       {/* Duration */}
       <section className="setup-section">
         <div className="setup-section-header">
-          <h3>Session Duration</h3>
-          <span className="duration-badge">{duration} min</span>
+          <h3 id="duration-heading">Session Duration</h3>
+          <span className="duration-badge" aria-hidden="true">{duration} min</span>
         </div>
         <div className="duration-slider-wrap">
           <input
@@ -131,11 +135,16 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
             step={1}
             value={duration}
             onChange={e => setDuration(Number(e.target.value))}
+            aria-labelledby="duration-heading"
+            aria-valuetext={`${duration} ${duration === 1 ? 'minute' : 'minutes'}`}
           />
-          <div className="duration-ticks">
+          <div className="duration-ticks" role="group" aria-label="Duration presets">
             {[1, 3, 5, 10, 15].map(v => (
               <button
                 key={v}
+                type="button"
+                aria-pressed={duration === v}
+                aria-label={`${v} ${v === 1 ? 'minute' : 'minutes'}`}
                 className={`tick-btn ${duration === v ? 'tick-btn--active' : ''}`}
                 onClick={() => setDuration(v)}
               >
@@ -149,14 +158,16 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
       {/* Start Button */}
       <div className="setup-cta">
         {!canStart && (
-          <p className="setup-hint">
+          <p className="setup-hint" id="setup-hint">
             {useCustom ? 'Type a topic to get started' : 'Select a topic to get started'}
           </p>
         )}
         <button
           id="start-session-btn"
           className="btn btn-primary btn-lg start-btn"
+          type="button"
           disabled={!canStart}
+          aria-describedby={canStart ? undefined : 'setup-hint'}
           onClick={handleStart}
         >
           <span className="btn-icon"><Icon name="mic" size={20} /></span>
@@ -336,7 +347,8 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
           border: 1px solid var(--border-default);
           border-radius: var(--radius-full);
           color: var(--text-secondary);
-          padding: 4px 12px;
+          min-height: 32px;
+          padding: 4px 14px;
           font-size: 0.8125rem;
           font-weight: 500;
           cursor: pointer;
@@ -344,12 +356,6 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
           font-family: var(--font-sans);
         }
         .tick-btn:hover { background: var(--bg-card-hover); color: var(--text-primary); }
-        .tick-btn--active {
-          background: var(--accent-dim) !important;
-          border-color: var(--accent-border) !important;
-          color: var(--accent-light) !important;
-        }
-
         .tick-btn--active {
           background: var(--accent-dim) !important;
           border-color: var(--accent-border) !important;

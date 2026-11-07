@@ -47,19 +47,21 @@
 .practice-path-section { margin-top: 0; }
 .practice-paths { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
 .practice-path { min-width: 0; display: flex; flex-direction: column; align-items: flex-start; padding: 26px; border-top: 3px solid var(--accent-border); }
-.practice-path--speech { border-top-color: #e9ae77; }
-.practice-path--journal { border-top-color: #9bd0b4; }
+/* Activity colors match the sidebar, Home and History:
+   conversation = violet, public speaking = teal, journal = warm orange. */
+.practice-path--speech { border-top-color: rgba(91, 216, 224, .55); }
+.practice-path--journal { border-top-color: rgba(244, 188, 138, .6); }
 .practice-path-icon, .practice-inline-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: var(--accent-light); background: var(--accent-dim); }
-.practice-path--speech .practice-path-icon { color: #e9ae77; background: rgba(233, 174, 119, .12); }
-.practice-path--journal .practice-path-icon { color: #9bd0b4; background: rgba(155, 208, 180, .12); }
+.practice-path--speech .practice-path-icon { color: #a8edf3; background: rgba(14, 165, 177, .18); }
+.practice-path--journal .practice-path-icon { color: #f4bc8a; background: rgba(244, 188, 138, .14); }
 .practice-path-type { margin-top: 22px; color: var(--text-muted); font-size: .7rem; font-weight: 800; letter-spacing: .12em; }
 .practice-path h3 { margin: 7px 0 10px; font-size: 1.45rem; }
 .practice-path p { flex: 1; color: var(--text-secondary); font-size: .9rem; line-height: 1.65; overflow-wrap: anywhere; }
 .practice-path-meta { margin: 16px 0; color: var(--text-muted); font-size: .77rem; }
 .practice-path-action, .practice-path-secondary { border: 0; background: none; color: var(--accent-light); font: inherit; font-weight: 700; cursor: pointer; padding: 5px 0; text-align: left; }
 .practice-path-action { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.practice-path--speech .practice-path-action, .practice-path--speech .practice-path-secondary { color: #e9ae77; }
-.practice-path--journal .practice-path-action { color: #9bd0b4; }
+.practice-path--speech .practice-path-action, .practice-path--speech .practice-path-secondary { color: #a8edf3; }
+.practice-path--journal .practice-path-action { color: #f4bc8a; }
 .practice-path-secondary { margin-top: 6px; font-size: .8rem; text-decoration: underline; text-underline-offset: 3px; }
 .practice-drills { scroll-margin-top: 24px; }
 .practice-work-heading { margin-top: 32px; }

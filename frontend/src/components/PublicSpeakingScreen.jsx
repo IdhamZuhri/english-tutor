@@ -153,22 +153,22 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
       <p>Pick a prompt, shape your message, and practice out loud. Your next step will be clear.</p>
     </header>
 
-    <div className="speech-steps" aria-label="Rehearsal steps">
-      {['Prepare', 'Rehearse', 'Reflect'].map((label, index) => <div key={label} className={`speech-step ${(['prepare', 'rehearse', 'review', 'result'].indexOf(step) >= [0, 1, 2][index]) ? 'speech-step--active' : ''}`}><span>{index + 1}</span>{label}</div>)}
-    </div>
+    <ol className="speech-steps" aria-label="Rehearsal steps">
+      {['Prepare', 'Rehearse', 'Reflect'].map((label, index) => { const current = Math.min(2, ['prepare', 'rehearse', 'review', 'result'].indexOf(step)); return <li key={label} className={`speech-step ${current >= index ? 'speech-step--active' : ''}`} aria-current={current === index ? 'step' : undefined}><span aria-hidden="true">{index + 1}</span>{label}</li>; })}
+    </ol>
 
     {(error || micError) && <div className="speech-error" role="alert">{error || micError}</div>}
 
     {step === 'prepare' && <>
-      <div className="speech-mode-switch" aria-label="Speaking practice mode">
-        <button type="button" className={`speech-chip ${mode === 'prepared' ? 'selected' : ''}`} onClick={() => chooseMode('prepared')}>Prepared speech</button>
-        <button type="button" className={`speech-chip ${mode === 'impromptu' ? 'selected' : ''}`} onClick={() => chooseMode('impromptu')}>Surprise topic</button>
+      <div className="speech-mode-switch" role="group" aria-label="Speaking practice mode">
+        <button type="button" className={`speech-chip ${mode === 'prepared' ? 'selected' : ''}`} aria-pressed={mode === 'prepared'} onClick={() => chooseMode('prepared')}>Prepared speech</button>
+        <button type="button" className={`speech-chip ${mode === 'impromptu' ? 'selected' : ''}`} aria-pressed={mode === 'impromptu'} onClick={() => chooseMode('impromptu')}>Surprise topic</button>
       </div>
       {mode === 'impromptu' && <section className="speech-section speech-surprise glass-card"><span className="speech-eyebrow">SPIN A TOPIC</span><h2>Speak on the spot</h2><p>Get a random AI topic, then speak freely until the timer ends. Try to explain your point with reasons and an example.</p><TopicWheel spinning={spinning} activeIndex={wheelIndex} onSpin={spinTopic} disabled={spinning} hasTopic={!!title} /><p className="topic-wheel-status" aria-live="polite">{spinning ? 'The wheel is choosing a theme…' : title ? 'Not feeling it? Spin again for a new theme.' : ''}</p>{title && <div className="speech-surprise-topic" aria-live="polite"><small>{wheelIndex !== null ? `${WHEEL_THEMES[wheelIndex].emoji} ${WHEEL_THEMES[wheelIndex].label.toUpperCase()} · YOUR TOPIC` : 'YOUR TOPIC'}</small><strong>{title}</strong></div>}</section>}
       {mode === 'prepared' && <>
       <section className="speech-section">
         <div className="speech-section-title"><span>01 / YOUR STAGE</span><h2>What will you speak about?</h2><p>Start with a challenge or write your own topic.</p></div>
-        <div className="speech-challenges">{challenges.map(challenge => <button type="button" key={challenge.title} className={`speech-challenge glass-card ${title === challenge.title ? 'selected' : ''}`} onClick={() => chooseChallenge(challenge)}><span className="speech-challenge-icon"><Icon name={challenge.icon} size={24} /></span><strong>{challenge.title}</strong><small>{challenge.hint}</small><span className="speech-challenge-format">{challenge.format}</span></button>)}</div>
+        <div className="speech-challenges">{challenges.map(challenge => <button type="button" key={challenge.title} className={`speech-challenge glass-card ${title === challenge.title ? 'selected' : ''}`} aria-pressed={title === challenge.title} onClick={() => chooseChallenge(challenge)}><span className="speech-challenge-icon"><Icon name={challenge.icon} size={24} /></span><strong>{challenge.title}</strong><small>{challenge.hint}</small><span className="speech-challenge-format">{challenge.format}</span></button>)}</div>
         <label className="speech-field">
           <span className="speech-field-heading"><span><Icon name="edit" size={16} /> Your own topic</span><small>{title.length}/120</small></span>
           <input value={title} maxLength={120} onChange={event => setTitle(event.target.value)} placeholder="e.g. Why everyone should learn to cook" />
@@ -177,11 +177,11 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
       </section>
       <section className="speech-section speech-plan glass-card">
         <div className="speech-section-title"><span>02 / THE SHAPE</span><h2>Build a simple outline</h2><p>Three short cues are enough. You can see them while you speak.</p></div>
-        <div className="speech-format-row" aria-label="Speech format">{Object.keys(formatTips).map(option => <button type="button" key={option} className={`speech-chip ${format === option ? 'selected' : ''}`} onClick={() => setFormat(option)}>{option}</button>)}</div>
+        <div className="speech-format-row" role="group" aria-label="Speech format">{Object.keys(formatTips).map(option => <button type="button" key={option} className={`speech-chip ${format === option ? 'selected' : ''}`} aria-pressed={format === option} onClick={() => setFormat(option)}>{option}</button>)}</div>
         <div className="speech-outline">{['Opening', 'Main point', 'Closing'].map((label, index) => <label key={label} className="speech-outline-card"><span className="speech-outline-number">{index + 1}</span><span className="speech-outline-copy"><strong>{label}</strong><small>{formatTips[format][index]}</small></span><span className="speech-outline-entry"><textarea rows="2" value={outline[index]} maxLength={180} onChange={event => updateOutline(index, event.target.value)} placeholder={index === 0 ? 'How will you begin?' : index === 1 ? 'What matters most?' : 'What should people remember?'} /><small>{outline[index].length}/180</small></span></label>)}</div>
       </section>
       </>}
-      <div className="speech-launch glass-card"><div><strong>Ready to take the stage?</strong><p>{mode === 'impromptu' ? 'Choose how long to speak. Recording ends when the time runs out, or you can finish early.' : 'Choose a goal. The timer helps you pace yourself; you can stop whenever you like.'}</p><div className="speech-format-row">{[1, 2, 3, 5].map(minutes => <button type="button" key={minutes} className={`speech-chip ${target === minutes ? 'selected' : ''}`} onClick={() => setTarget(minutes)}>{minutes} min</button>)}</div></div><button type="button" className="btn btn-primary btn-lg" disabled={!title.trim() || spinning} onClick={begin}><Icon name="mic" size={18} /> {mode === 'impromptu' ? 'Start speaking' : 'Start rehearsal'}</button></div>
+      <div className="speech-launch glass-card"><div><strong>Ready to take the stage?</strong><p>{mode === 'impromptu' ? 'Choose how long to speak. Recording ends when the time runs out, or you can finish early.' : 'Choose a goal. The timer helps you pace yourself; you can stop whenever you like.'}</p><div className="speech-format-row" role="group" aria-label="Speaking time">{[1, 2, 3, 5].map(minutes => <button type="button" key={minutes} className={`speech-chip ${target === minutes ? 'selected' : ''}`} aria-pressed={target === minutes} aria-label={`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`} onClick={() => setTarget(minutes)}>{minutes} min</button>)}</div></div><button type="button" className="btn btn-primary btn-lg" disabled={!title.trim() || spinning} onClick={begin}><Icon name="mic" size={18} /> {mode === 'impromptu' ? 'Start speaking' : 'Start rehearsal'}</button></div>
       {recent.length > 0 && <section className="speech-recent"><div className="speech-section-title"><span>YOUR MOMENTUM</span><h2>Past rehearsals</h2></div><div className="speech-recent-list">{recent.slice(0, 4).map(item => <button type="button" className="speech-recent-row glass-card" key={item.id} onClick={() => openRecent(item.id)} disabled={busy}><span className="speech-recent-icon"><Icon name="podium" size={20} /></span><span><strong>{item.title}</strong><small>{item.format} · {new Date(item.created_at).toLocaleDateString()}</small></span><span aria-hidden="true">→</span></button>)}</div></section>}
     </>}
 

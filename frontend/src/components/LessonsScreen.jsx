@@ -34,7 +34,7 @@ export default function LessonsScreen() {
 
   return <div className="lessons-screen animate-in">
     <header className="lessons-header">
-      <span className="lessons-eyebrow"><Icon name="edit" size={16} /> ENGLISH NOTES</span>
+      <span className="lessons-eyebrow"><Icon name="book" size={16} /> ENGLISH NOTES</span>
       <h1>Learn a rule. Use it when you speak.</h1>
       <p>Browse practical grammar notes from the building blocks to complex sentences. Each lesson includes the form, when to use it, examples, a common mistake and a speaking task.</p>
       <div className="lessons-progress" aria-label={`${completed.length} of ${LESSONS.length} lessons studied`}>

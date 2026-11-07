@@ -32,6 +32,16 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
     if (!isRecording && appState === 'recording') setRecording(false);
   }, [isRecording, appState, setRecording]);
 
+  // End-session dialog: Escape closes it; focus returns to the End button.
+  const endButtonRef = useRef(null);
+  const closeEndConfirm = () => { setShowEndConfirm(false); endButtonRef.current?.focus(); };
+  useEffect(() => {
+    if (!showEndConfirm) return undefined;
+    const onKey = event => { if (event.key === 'Escape') closeEndConfirm(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showEndConfirm]);
+
   // ── BUG FIX: merge recording state from useAudioRecorder with session appState ──
   // appState (from useSession) never reaches 'recording' — that's tracked by
   // useAudioRecorder's isRecording. Without this merge, the mic button always
@@ -85,8 +95,11 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
           <SessionTimer timeLeft={timeLeft} totalSecs={durationSecs} />
           <button
             id="end-session-btn"
+            ref={endButtonRef}
+            type="button"
             className="btn btn-danger btn-sm"
             onClick={() => setShowEndConfirm(true)}
+            aria-haspopup="dialog"
           >
             End
           </button>
@@ -109,8 +122,8 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
         {/* Processing indicator (AI "thinking" bubble) */}
         {appState === 'processing' && (
           <div className="bubble-wrap bubble-wrap--ai animate-in">
-            <div className="bubble-avatar">A</div>
-            <div className="bubble bubble--ai bubble--thinking">
+            <div className="bubble-avatar" aria-hidden="true">A</div>
+            <div className="bubble bubble--ai bubble--thinking" role="status" aria-label="Alex is thinking">
               <span className="dot-pulse"><span/><span/><span/></span>
             </div>
           </div>
@@ -130,7 +143,7 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
       {/* Footer toolbar */}
       <footer className="chat-footer">
         <div className="chat-footer-inner">
-          <p className="chat-hint">
+          <p className="chat-hint" aria-live="polite">
             {effectiveState === 'finished'
               ? 'Time is up! Review your chat, then click End.'
               : effectiveState === 'processing' && !isRecording
@@ -160,18 +173,25 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
 
       {/* End session confirmation */}
       {showEndConfirm && (
-        <div className="modal-overlay" onClick={() => setShowEndConfirm(false)}>
-          <div className="modal-box glass-card" onClick={e => e.stopPropagation()}>
-            <h3>End this session?</h3>
-              <p>You'll see your conversation summary. Any spoken replies are already saved and count toward your weekly goal.</p>
+        <div className="modal-overlay" onClick={closeEndConfirm}>
+          <div
+            className="modal-box glass-card"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="end-session-title"
+            aria-describedby="end-session-desc"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 id="end-session-title">End this session?</h3>
+            <p id="end-session-desc">You'll see your conversation summary. Any spoken replies are already saved and count toward your weekly goal.</p>
             <div className="modal-actions">
-              <button className="btn btn-secondary" onClick={() => setShowEndConfirm(false)}>
+              <button type="button" className="btn btn-secondary" onClick={closeEndConfirm} autoFocus>
                 Keep going
               </button>
-              <button className="btn btn-secondary" onClick={onExit} style={{ color: '#ef4444' }}>
-                Exit
+              <button type="button" className="btn btn-ghost modal-leave" onClick={onExit}>
+                Leave without summary
               </button>
-              <button className="btn btn-danger" onClick={endSession}>
+              <button type="button" className="btn btn-danger" onClick={endSession}>
                 End & see results
               </button>
             </div>
@@ -192,7 +212,7 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
           .chat-screen { height: 100dvh; }
           .chat-header { padding: 9px 14px; gap: 8px; }
           .chat-header-right { width: 100%; justify-content: space-between; gap: 7px; }
-          .chat-header-right .status-badge { max-width: 55%; font-size: .64rem; line-height: 1.2; }
+          .chat-header-right .status-badge { max-width: 55%; font-size: .7rem; line-height: 1.2; }
           .chat-messages { min-height: 0; padding: 16px 12px; }
           .chat-footer { padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); }
           .chat-footer-inner { gap: 7px; }
@@ -359,6 +379,8 @@ export default function ChatScreen({ topic, durationSecs, focus, persona, onSess
           justify-content: flex-end;
           margin-top: 4px;
         }
+        .modal-leave { color: #fca5a5; }
+        .modal-leave:hover:not(:disabled) { color: #fecaca; }
       `}</style>
     </div>
   );

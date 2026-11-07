@@ -56,8 +56,8 @@ export default function SummaryScreen({ history, sessionId, isHistoryView, topic
         <div className="summary-error glass-card animate-in">
           <Icon name="alert" size={32} />
           <p>Details unavailable: {error}</p>
-          <button className="btn btn-secondary btn-sm" onClick={onRestart}>
-            Start Over
+          <button type="button" className="btn btn-secondary btn-sm" onClick={onRestart}>
+            {isHistoryView ? 'Back to History' : 'Start over'}
           </button>
         </div>
       ) : (
