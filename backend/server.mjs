@@ -235,7 +235,7 @@ async function api(req, res, pathname, searchParams) {
     catch { return json(res, 400, { detail: 'Invalid topic request' }); }
     const recentTopics = Array.isArray(body?.recentTopics) ? body.recentTopics.filter(value => typeof value === 'string').slice(-12).map(value => value.slice(0, 120)) : [];
     const themes = ['everyday life', 'travel and places', 'technology', 'community', 'learning', 'food and culture', 'work and goals', 'imagination'];
-    const theme = themes[Math.floor(Math.random() * themes.length)];
+    const theme = themes.includes(body?.theme) ? body.theme : themes[Math.floor(Math.random() * themes.length)];
     const raw = await complete([
       { role: 'system', content: 'Create one fresh, accessible English speaking topic for a learner to talk about freely for 1 to 5 minutes. Make it specific enough to invite an opinion, reasons, and examples, but open enough for different answers. Return JSON with a single topic string (a short question, at most 120 characters). No instructions, answers, or sensitive personal questions.' },
       { role: 'user', content: JSON.stringify({ theme, avoid: recentTopics }) },

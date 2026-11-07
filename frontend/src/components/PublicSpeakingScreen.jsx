@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
+import TopicWheel, { SPIN_MS, WHEEL_THEMES } from './TopicWheel.jsx';
 import { useAudioRecorder } from '../hooks/useAudioRecorder.js';
 import { fetchSpeech, fetchSpeeches, fetchSurpriseTopic, submitSpeech } from '../services/api.js';
 import './PublicSpeakingScreen.css';
@@ -21,6 +22,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
   const [format, setFormat] = useState(initialMode === 'impromptu' ? 'Impromptu' : 'Presentation');
   const [mode, setMode] = useState(initialMode);
   const [spinning, setSpinning] = useState(false);
+  const [wheelIndex, setWheelIndex] = useState(null);
   const [seenTopics, setSeenTopics] = useState([]);
   const [title, setTitle] = useState('');
   const [outline, setOutline] = useState(['', '', '']);
@@ -65,14 +67,19 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
     setFormat(next === 'impromptu' ? 'Impromptu' : 'Presentation');
     setOutline(['', '', '']);
   };
-  const spinTopic = async () => {
+  const spinTopic = async index => {
     const request = ++topicRequestRef.current;
     setSpinning(true);
+    setWheelIndex(null);
     setError('');
     try {
-      const topic = await fetchSurpriseTopic(seenTopics);
+      const [topic] = await Promise.all([
+        fetchSurpriseTopic(seenTopics, WHEEL_THEMES[index].theme),
+        new Promise(resolve => setTimeout(resolve, SPIN_MS + 150)),
+      ]);
       if (request !== topicRequestRef.current) return;
       setTitle(topic);
+      setWheelIndex(index);
       setSeenTopics(current => [...current.slice(-11), topic]);
     } catch (err) { if (request === topicRequestRef.current) setError(err.message); }
     finally { if (request === topicRequestRef.current) setSpinning(false); }
@@ -157,7 +164,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
         <button type="button" className={`speech-chip ${mode === 'prepared' ? 'selected' : ''}`} onClick={() => chooseMode('prepared')}>Prepared speech</button>
         <button type="button" className={`speech-chip ${mode === 'impromptu' ? 'selected' : ''}`} onClick={() => chooseMode('impromptu')}>Surprise topic</button>
       </div>
-      {mode === 'impromptu' && <section className="speech-section speech-surprise glass-card"><span className="speech-eyebrow">SPIN A TOPIC</span><h2>Speak on the spot</h2><p>Get a random AI topic, then speak freely until the timer ends. Try to explain your point with reasons and an example.</p><button type="button" className="btn btn-secondary" onClick={spinTopic} disabled={spinning}>{spinning ? 'Finding a topic…' : title ? 'Spin again' : 'Spin for a topic'}</button>{title && <div className="speech-surprise-topic" aria-live="polite"><small>YOUR TOPIC</small><strong>{title}</strong></div>}</section>}
+      {mode === 'impromptu' && <section className="speech-section speech-surprise glass-card"><span className="speech-eyebrow">SPIN A TOPIC</span><h2>Speak on the spot</h2><p>Get a random AI topic, then speak freely until the timer ends. Try to explain your point with reasons and an example.</p><TopicWheel spinning={spinning} activeIndex={wheelIndex} onSpin={spinTopic} disabled={spinning} hasTopic={!!title} /><p className="topic-wheel-status" aria-live="polite">{spinning ? 'The wheel is choosing a theme…' : title ? 'Not feeling it? Spin again for a new theme.' : ''}</p>{title && <div className="speech-surprise-topic" aria-live="polite"><small>{wheelIndex !== null ? `${WHEEL_THEMES[wheelIndex].emoji} ${WHEEL_THEMES[wheelIndex].label.toUpperCase()} · YOUR TOPIC` : 'YOUR TOPIC'}</small><strong>{title}</strong></div>}</section>}
       {mode === 'prepared' && <>
       <section className="speech-section">
         <div className="speech-section-title"><span>01 / YOUR STAGE</span><h2>What will you speak about?</h2><p>Start with a challenge or write your own topic.</p></div>

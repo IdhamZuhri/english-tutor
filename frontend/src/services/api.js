@@ -42,10 +42,10 @@ export async function fetchSpeeches() {
   return res.json();
 }
 
-export async function fetchSurpriseTopic(recentTopics = []) {
+export async function fetchSurpriseTopic(recentTopics = [], theme) {
   const res = await fetch(`${BASE}/speeches/topic`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ recentTopics }),
+    body: JSON.stringify({ recentTopics, theme }),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.detail || 'Could not spin a topic. Please try again.');
