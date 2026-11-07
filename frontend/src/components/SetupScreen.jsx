@@ -200,7 +200,6 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
         }
         .setup-logo {
           color: var(--accent-light);
-          filter: drop-shadow(0 0 24px rgba(124,58,237,0.5));
           animation: float 3s ease-in-out infinite;
         }
         @keyframes float {
@@ -268,7 +267,6 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
         .topic-card--selected {
           background: var(--accent-dim) !important;
           border-color: var(--accent-border) !important;
-          box-shadow: 0 0 20px var(--accent-glow) !important;
         }
         .topic-icon {
           color: var(--accent-light);
@@ -377,10 +375,8 @@ export default function SetupScreen({ onStart, persona, onPersonaChange }) {
           padding: 16px 48px;
           font-size: 1.0625rem;
           border-radius: var(--radius-full);
-          box-shadow: 0 8px 32px rgba(124,58,237,0.4), 0 0 64px rgba(124,58,237,0.1);
         }
         .start-btn:not(:disabled):hover {
-          box-shadow: 0 12px 40px rgba(124,58,237,0.55), 0 0 80px rgba(124,58,237,0.15);
         }
         .btn-icon { display: inline-flex; align-items: center; }
         @media (max-width: 800px) {

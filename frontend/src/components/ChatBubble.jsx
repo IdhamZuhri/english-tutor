@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import Icon from './Icon.jsx';
+import { turnStats } from '../speakingStats.js';
 
 /**
  * ChatBubble — displays a user or assistant message.
  *
- * User bubbles: right-aligned, violet gradient, with optional corrections panel.
+ * User bubbles: right-aligned, solid violet, with optional corrections panel.
  * AI bubbles: left-aligned, glass style, with typing/speaking state.
  */
 export default function ChatBubble({ message }) {
@@ -13,6 +14,7 @@ export default function ChatBubble({ message }) {
   const [showCorrections, setShowCorrections] = useState(true);
 
   const hasCorrections = corrections?.has_corrections && corrections?.corrections?.length > 0;
+  const stats = isUser ? turnStats(content, message.speakingSecs) : null;
 
   return (
     <div className={`bubble-wrap ${isUser ? 'bubble-wrap--user' : 'bubble-wrap--ai'}`}>
@@ -26,6 +28,15 @@ export default function ChatBubble({ message }) {
         <div className={`bubble ${isUser ? 'bubble--user' : 'bubble--ai'}`}>
           <p className="bubble-text">{content}</p>
         </div>
+
+        {/* Per-turn result: words, estimated pace, speaking time */}
+        {stats && stats.words > 0 && (
+          <p className="turn-stats">
+            <span>{stats.words} {stats.words === 1 ? 'word' : 'words'}</span>
+            {stats.wpm && <span title="Estimated from the transcript and recording length">~{stats.wpm} wpm</span>}
+            {message.speakingSecs ? <span>{message.speakingSecs}s</span> : null}
+          </p>
+        )}
 
         {/* Correction panel — user bubbles only */}
         {isUser && hasCorrections && (
@@ -87,23 +98,22 @@ const BUBBLE_STYLES = `
   .bubble-avatar {
     width: 34px; height: 34px; min-width: 34px;
     border-radius: 50%;
-    background: linear-gradient(135deg, #7c3aed, #5b21b6);
+    background: var(--accent);
     display: flex; align-items: center; justify-content: center;
     font-size: 0.875rem; font-weight: 700; color: white;
-    box-shadow: 0 0 12px rgba(124,58,237,0.3);
     margin-bottom: 4px;
   }
   .bubble-content-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
   .bubble { border-radius: var(--radius-xl); padding: 12px 16px; max-width: 100%; word-break: break-word; }
-  .bubble--user { background: var(--bubble-user-bg); border-bottom-right-radius: var(--radius-sm); box-shadow: 0 4px 20px rgba(124,58,237,0.3); }
-  .bubble--ai   { background: var(--bubble-ai-bg); border: 1px solid var(--bubble-ai-border); border-bottom-left-radius: var(--radius-sm); backdrop-filter: blur(8px); }
+  .bubble--user { background: var(--bubble-user-bg); border-bottom-right-radius: var(--radius-sm); color: #fff; }
+  .bubble--ai   { background: var(--bubble-ai-bg); border: 1px solid var(--bubble-ai-border); border-bottom-left-radius: var(--radius-sm); }
   .bubble-text  { font-size: 0.9375rem; line-height: 1.6; color: var(--text-primary); }
-  .correction-panel { background: rgba(124,58,237,0.08); border: 1px solid rgba(124,58,237,0.2); border-radius: var(--radius-md); overflow: hidden; font-size: 0.8125rem; }
+  .correction-panel { background: var(--bg-card); border: 1px solid var(--border-default); border-radius: var(--radius-md); overflow: hidden; font-size: 0.8125rem; }
   .correction-toggle { display: flex; align-items: center; gap: 6px; width: 100%; background: none; border: none; color: var(--accent-light); font-size: 0.8125rem; font-family: var(--font-sans); font-weight: 500; padding: 8px 12px; cursor: pointer; text-align: left; transition: background var(--transition-fast); }
-  .correction-toggle:hover { background: rgba(124,58,237,0.1); }
+  .correction-toggle:hover { background: var(--bg-card-hover); }
   .correction-icon    { display: inline-flex; align-items: center; }
   .correction-chevron { margin-left: auto; font-size: 0.625rem; opacity: 0.7; }
-  .correction-body  { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid rgba(124,58,237,0.15); }
+  .correction-body  { padding: 8px 12px 10px; display: flex; flex-direction: column; gap: 8px; border-top: 1px solid var(--border-subtle); }
   .correction-full  { color: var(--text-secondary); font-size: 0.8125rem; line-height: 1.5; }
   .correction-label { color: var(--text-muted); font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 4px; }
   .correction-items { display: flex; flex-direction: column; gap: 4px; }
@@ -112,6 +122,8 @@ const BUBBLE_STYLES = `
   .correction-arrow { color: var(--text-muted); font-size: 0.75rem; }
   .correction-fixed { color: #6ee7b7; font-weight: 600; font-size: 0.8125rem; }
   .correction-note  { color: var(--text-muted); font-size: 0.75rem; font-style: italic; }
+  .turn-stats { align-self: flex-end; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px 10px; color: var(--text-muted); font-size: 0.72rem; font-variant-numeric: tabular-nums; }
+  .turn-stats span + span::before { content: '·'; margin-right: 10px; color: var(--border-strong); }
   .no-corrections   { display: inline-flex; align-items: center; gap: 4px; color: var(--color-success); font-size: 0.75rem; padding-left: 4px; opacity: 0.75; }
 `;
 

@@ -6,6 +6,6 @@
     "build": "npm --prefix frontend run build",
     "start": "node backend/server.mjs",
     "dev": "npm --prefix frontend run dev",
-    "test": "node --test backend/server.test.mjs frontend/src/weeklyQuest.test.mjs"
+    "test": "node --test backend/server.test.mjs frontend/src/weeklyQuest.test.mjs frontend/src/homeRecommendation.test.mjs"
   }
 }

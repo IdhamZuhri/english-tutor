@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import SetupScreen from './components/SetupScreen.jsx';
 import ChatScreen from './components/ChatScreen.jsx';
 import SummaryScreen from './components/SummaryScreen.jsx';
@@ -11,7 +11,9 @@ import PublicSpeakingScreen from './components/PublicSpeakingScreen.jsx';
 import HomeScreen from './components/HomeScreen.jsx';
 import JournalScreen from './components/JournalScreen.jsx';
 import IdeaBoardScreen from './components/IdeaBoardScreen.jsx';
+import SectionTabs from './components/SectionTabs.jsx';
 import { validPersona } from './personas.js';
+import { SECTIONS, sectionForScreen } from './navigation.js';
 
 /**
  * App — top-level screen router.
@@ -85,11 +87,40 @@ export default function App() {
     setScreen(isHistoryView ? 'history' : sessionConfig.focus ? 'practice' : 'conversation');
   };
 
+  // The Idea Board is a developer page, kept out of the learner navigation: open it at #ideas.
+  useEffect(() => {
+    const syncHash = () => { if (window.location.hash === '#ideas') setScreen('ideas'); };
+    syncHash();
+    window.addEventListener('hashchange', syncHash);
+    return () => window.removeEventListener('hashchange', syncHash);
+  }, []);
+
+  // Remember the last tab inside each section, so "Speak" returns to where you were.
+  const lastScreenRef = useRef({});
+  useEffect(() => {
+    const section = sectionForScreen(screen);
+    if (section) lastScreenRef.current[section.id] = screen;
+  }, [screen]);
+
   const handleTabChange = (tabId, speechMode = 'prepared') => {
     if (tabId === 'public-speaking') { setSelectedSpeechId(null); setSelectedSpeechMode(speechMode); setSpeechFromHistory(false); }
     if (tabId === 'journal') { setSelectedJournalId(null); setJournalFromHistory(false); }
+    if (window.location.hash === '#ideas') window.history.replaceState(null, '', window.location.pathname + window.location.search);
     setScreen(tabId);
+    window.scrollTo({ top: 0 });
   };
+
+  const handleSectionNav = sectionId => {
+    const section = SECTIONS.find(item => item.id === sectionId);
+    if (!section) return;
+    handleTabChange(lastScreenRef.current[sectionId] || section.screens[0].id);
+  };
+
+  const activeSection = screen === 'session' || (screen === 'summary' && !isHistoryView)
+    ? (sessionSource === 'practice' ? 'progress' : 'speak')
+    : screen === 'summary' ? 'progress'
+    : sectionForScreen(screen)?.id || null;
+  const tabSection = sectionForScreen(screen);
 
   const handleViewSpeech = (id, fromHistory = false) => {
     setSelectedSpeechId(id);
@@ -105,9 +136,10 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <Sidebar activeTab={screen === 'session' ? sessionSource : screen === 'summary' && !isHistoryView ? sessionSource : screen} onTabChange={handleTabChange} sessionActive={screen === 'session'} />
-      
-      <main className="main-content">
+      <Sidebar activeSection={activeSection} onNavigate={handleSectionNav} sessionActive={screen === 'session'} />
+
+      <main className={`main-content ${screen === 'session' ? 'main-content--session' : ''}`}>
+        <SectionTabs section={tabSection} activeScreen={screen} onSelect={handleTabChange} />
         {screen === 'home' && <HomeScreen onNavigate={handleTabChange} onViewHistory={handleViewHistory} onViewSpeech={handleViewSpeech} onViewJournal={handleViewJournal} />}
 
         {screen === 'conversation' && (

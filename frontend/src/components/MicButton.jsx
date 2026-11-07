@@ -90,13 +90,13 @@ export default function MicButton({ appState, onPress, onRelease }) {
           align-items: center;
           justify-content: center;
           transition: all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
-          background: linear-gradient(135deg, #7c3aed, #5b21b6);
-          box-shadow: 0 6px 28px rgba(124,58,237,0.45), 0 0 0 0 rgba(124,58,237,0.3);
+          background: var(--accent);
+          box-shadow: 0 0 0 6px var(--accent-dim);
           color: white;
         }
         .mic-btn:hover:not(:disabled) {
           transform: scale(1.07);
-          box-shadow: 0 10px 40px rgba(124,58,237,0.6), 0 0 0 0 rgba(124,58,237,0.3);
+          box-shadow: 0 0 0 8px var(--accent-dim);
         }
         .mic-btn:active:not(:disabled) {
           transform: scale(0.96);
@@ -108,7 +108,7 @@ export default function MicButton({ appState, onPress, onRelease }) {
 
         /* Recording state */
         .mic-btn--recording {
-          background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+          background: #dc2626 !important;
           box-shadow: 0 6px 28px rgba(239,68,68,0.5) !important;
           animation: micPulse 1.5s ease-in-out infinite !important;
         }
@@ -121,7 +121,6 @@ export default function MicButton({ appState, onPress, onRelease }) {
         .mic-btn--processing {
           background: rgba(245,158,11,0.2) !important;
           border: 2px solid rgba(245,158,11,0.4) !important;
-          box-shadow: 0 0 24px rgba(245,158,11,0.2) !important;
           cursor: wait !important;
         }
 
@@ -129,7 +128,6 @@ export default function MicButton({ appState, onPress, onRelease }) {
         .mic-btn--speaking {
           background: rgba(16,185,129,0.15) !important;
           border: 2px solid rgba(16,185,129,0.35) !important;
-          box-shadow: 0 0 24px rgba(16,185,129,0.2) !important;
           color: #6ee7b7 !important;
         }
 

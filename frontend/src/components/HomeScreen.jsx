@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import { fetchJournalEntries, fetchPastSessions, fetchSpeeches } from '../services/api.js';
 import Icon from './Icon.jsx';
 import { defaultWeeklyGoal, weeklyGoals, weeklySpeakingProgress } from '../weeklyQuest.js';
+import { recommendNext } from '../homeRecommendation.js';
 import './HomeScreen.css';
 
-const explore = [
-  { id: 'practice', title: 'My Practice', description: 'Choose your next step across conversation, public speaking, and journaling.', icon: 'target', action: 'Keep growing' },
-  { id: 'channels', title: 'Channels', description: 'Find videos and listening ideas for a fresh spark.', icon: 'play', action: 'Explore channels' },
-  { id: 'lessons', title: 'English Notes', description: 'Refresh a useful English concept before you speak.', icon: 'book', action: 'Browse notes' },
-  { id: 'history', title: 'History', description: 'Find every conversation, rehearsal, and journal entry in one place.', icon: 'history', action: 'View history' },
+// Quick starts shown beside the quest; the one matching the recommendation is left out.
+const QUICK_STARTS = [
+  { id: 'conversation', target: 'conversation', icon: 'chat', tone: 'conversation', title: 'Conversation', detail: 'Talk through a topic with Alex.' },
+  { id: 'surprise-topic', target: 'public-speaking', mode: 'impromptu', icon: 'podium', tone: 'speech', title: 'Surprise topic', detail: 'Spin the wheel and speak for 1–5 minutes.' },
+  { id: 'journal', target: 'journal', icon: 'journal', tone: 'journal', title: 'Journal', detail: 'Write or speak a short reflection.' },
 ];
+const RECENT_ICON = { Conversation: 'chat', 'Public speaking': 'podium', Journal: 'journal' };
 
 export default function HomeScreen({ onNavigate, onViewHistory, onViewSpeech, onViewJournal }) {
   const [sessions, setSessions] = useState([]);
@@ -43,58 +45,62 @@ export default function HomeScreen({ onNavigate, onViewHistory, onViewSpeech, on
     try { localStorage.setItem('speakwell-weekly-goal', String(goal)); } catch { /* Storage may be unavailable. */ }
   };
 
+  const next = recommendNext({ sessions, speeches, journalEntries, progress: speakingLoaded ? progress : null });
+  const quickStarts = QUICK_STARTS.filter(item => item.id !== next.id && !(next.id === 'first-conversation' && item.id === 'conversation') && !(next.id === 'bonus-conversation' && item.id === 'conversation')).slice(0, 2);
+  const go = item => onNavigate(item.target, item.mode);
+
   const recent = [
-    ...sessions.map(item => ({ id: item.id, title: item.topic, type: 'Conversation', date: item.created_at, icon: 'chat', onClick: () => onViewHistory(item.id) })),
-    ...speeches.map(item => ({ id: item.id, title: item.title, type: 'Public speaking', date: item.created_at, icon: 'podium', onClick: () => onViewSpeech(item.id) })),
-    ...journalEntries.map(item => ({ id: item.id, title: item.title, type: 'Daily journal', date: item.created_at, icon: 'journal', onClick: () => onViewJournal(item.id) })),
+    ...sessions.map(item => ({ id: item.id, title: item.topic, type: 'Conversation', date: item.created_at, onClick: () => onViewHistory(item.id) })),
+    ...speeches.map(item => ({ id: item.id, title: item.title, type: 'Public speaking', date: item.created_at, onClick: () => onViewSpeech(item.id) })),
+    ...journalEntries.map(item => ({ id: item.id, title: item.title, type: 'Journal', date: item.created_at, onClick: () => onViewJournal(item.id) })),
   ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3);
+
+  const today = new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
 
   return <div className="home-screen animate-in">
     <header className="home-intro">
-      <span className="home-eyebrow"><Icon name="spark" size={17} /> YOUR SPEAKING SPACE</span>
-      <h1>What would you like to practice today?</h1>
-      <p>Build confidence through conversation, prepare for the stage, reflect on your day, or take one small step with a lesson.</p>
+      <span className="home-eyebrow">Today · {today}</span>
+      <h1>Ready for today’s practice?</h1>
     </header>
 
-    <section className="home-quest glass-card" aria-labelledby="home-quest-heading">
-      <div className="home-quest-top"><span className="home-eyebrow"><Icon name="award" size={17} /> WEEKLY SPEAKING QUEST</span><span className="home-quest-period">Resets every Monday</span></div>
-      <div className="home-quest-main"><div><h2 id="home-quest-heading">{speakingLoaded && progress.complete ? 'You reached your speaking goal!' : 'Make room for your voice this week'}</h2><p>{speakingLoaded ? progress.complete ? 'You showed up for yourself. Keep speaking whenever you like.' : `${progress.remaining} ${progress.remaining === 1 ? 'practice' : 'practices'} to go. Each conversation or reviewed speech moves you forward.` : loaded ? 'Could not load speaking progress. Try refreshing the page.' : 'Loading your speaking progress…'}</p></div><strong className="home-quest-count" aria-label={speakingLoaded ? `${progress.count} of ${weeklyGoal} speaking practices this week` : undefined}>{speakingLoaded ? `${progress.count}/${weeklyGoal}` : '—'}</strong></div>
-      {speakingLoaded && <div className="home-quest-track" role="progressbar" aria-label="Weekly speaking goal" aria-valuenow={Math.min(progress.count, weeklyGoal)} aria-valuemin="0" aria-valuemax={weeklyGoal}><span style={{ width: `${Math.min(100, progress.count / weeklyGoal * 100)}%` }} /></div>}
-      <div className="home-quest-footer"><div className="home-quest-goals"><span>Weekly goal</span>{weeklyGoals.map(goal => <button key={goal} type="button" className={weeklyGoal === goal ? 'selected' : ''} onClick={() => changeWeeklyGoal(goal)} aria-pressed={weeklyGoal === goal}>{goal}</button>)}</div><div className="home-quest-actions"><button type="button" onClick={() => onNavigate('conversation')}>Start a conversation</button><button type="button" onClick={() => onNavigate('public-speaking', 'impromptu')}>Try a surprise topic <span aria-hidden="true">→</span></button></div></div>
-    </section>
-
-    <section className="home-feature-section" aria-labelledby="home-start-heading">
-      <div className="home-section-heading"><span>START HERE</span><h2 id="home-start-heading">Choose your way to speak</h2></div>
-      <div className="home-feature-grid">
-        <button type="button" className="home-feature home-feature--conversation glass-card" onClick={() => onNavigate('conversation')}>
-          <span className="home-feature-top"><span className="home-feature-icon"><Icon name="chat" size={27} /></span><span className="home-feature-tag">Everyday fluency</span></span>
-          <span className="home-feature-copy"><strong>Have a conversation</strong><span>Choose a topic, meet your AI speaking partner, and let the words flow.</span></span>
-          <span className="home-feature-action">Start a conversation <span aria-hidden="true">→</span></span>
-        </button>
-        <button type="button" className="home-feature home-feature--speech glass-card" onClick={() => onNavigate('public-speaking')}>
-          <span className="home-feature-top"><span className="home-feature-icon"><Icon name="podium" size={27} /></span><span className="home-feature-tag">Speak with purpose</span></span>
-          <span className="home-feature-copy"><strong>Practice public speaking</strong><span>Shape a message, rehearse out loud, and get a clear next step.</span></span>
-          <span className="home-feature-action">Enter the studio <span aria-hidden="true">→</span></span>
-        </button>
-        <button type="button" className="home-feature home-feature--journal glass-card" onClick={() => onNavigate('journal')}>
-          <span className="home-feature-top"><span className="home-feature-icon"><Icon name="journal" size={27} /></span><span className="home-feature-tag">A moment for you</span></span>
-          <span className="home-feature-copy"><strong>Keep a daily journal</strong><span>Write or speak about your day, then return to your reflections.</span></span>
-          <span className="home-feature-action">Open your journal <span aria-hidden="true">→</span></span>
-        </button>
+    <section className={`home-next ${loaded ? '' : 'is-loading'}`} aria-labelledby="home-next-heading" aria-busy={!loaded}>
+      <div className="home-next-copy">
+        <span className="home-next-label">Recommended next step</span>
+        <h2 id="home-next-heading">{loaded ? next.title : 'Finding your next step…'}</h2>
+        <p>{loaded ? next.detail : 'Checking this week’s practice.'}</p>
       </div>
+      <button type="button" className="home-next-cta" onClick={() => go(next)} disabled={!loaded}>
+        <Icon name={next.target === 'journal' ? 'journal' : 'mic'} size={18} /> {next.action}
+      </button>
     </section>
 
-    <section className="home-explore" aria-labelledby="home-explore-heading">
-      <div className="home-section-heading"><span>KEEP GROWING</span><h2 id="home-explore-heading">More ways to learn</h2></div>
-      <div className="home-explore-grid">{explore.map(item => <button type="button" key={item.id} className="home-explore-card glass-card" onClick={() => onNavigate(item.id)}><span className="home-explore-icon"><Icon name={item.icon} size={21} /></span><strong>{item.title}</strong><span>{item.description}</span><small>{item.action} <span aria-hidden="true">→</span></small></button>)}</div>
-    </section>
+    <div className="home-bento">
+      <section className="home-tile home-quest" aria-labelledby="home-quest-heading">
+        <div className="home-tile-top"><h2 id="home-quest-heading">Weekly speaking quest</h2><span className="home-quest-period">Resets Monday</span></div>
+        <div className="home-quest-count">
+          <strong aria-hidden="true">{speakingLoaded ? progress.count : '–'}<span>/{weeklyGoal}</span></strong>
+          <p>{speakingLoaded ? progress.complete ? 'Goal reached. Nice work showing up for yourself.' : `${progress.remaining} to go. Conversations and reviewed speeches count.` : loaded ? 'Progress could not load. Try refreshing the page.' : 'Loading…'}</p>
+        </div>
+        {speakingLoaded && <div className="home-quest-track" role="progressbar" aria-label="Weekly speaking goal" aria-valuenow={Math.min(progress.count, weeklyGoal)} aria-valuemin="0" aria-valuemax={weeklyGoal} aria-valuetext={`${progress.count} of ${weeklyGoal} practices`}><span style={{ width: `${Math.min(100, progress.count / weeklyGoal * 100)}%` }} /></div>}
+        <div className="home-quest-goals" role="group" aria-label="Weekly goal"><span>Goal</span>{weeklyGoals.map(goal => <button key={goal} type="button" className={weeklyGoal === goal ? 'selected' : ''} onClick={() => changeWeeklyGoal(goal)} aria-pressed={weeklyGoal === goal} aria-label={`${goal} ${goal === 1 ? 'practice' : 'practices'} per week`}>{goal}</button>)}</div>
+      </section>
 
-    {loaded && <section className="home-progress" aria-labelledby="home-progress-heading">
-      <div className="home-section-heading"><span>YOUR JOURNEY</span><h2 id="home-progress-heading">Every attempt counts</h2></div>
-      <div className="home-progress-panel glass-card">
-        <div className="home-stats"><div><strong>{sessions.length}</strong><span>{sessions.length === 1 ? 'conversation' : 'conversations'}</span></div><div><strong>{speeches.length}</strong><span>{speeches.length === 1 ? 'rehearsal' : 'rehearsals'}</span></div><div><strong>{journalEntries.length}</strong><span>{journalEntries.length === 1 ? 'journal entry' : 'journal entries'}</span></div></div>
-        <div className="home-recent"><h3>Pick up where you left off</h3>{recent.length ? <div className="home-recent-list">{recent.map(item => <button type="button" key={`${item.type}-${item.id}`} onClick={item.onClick}><span className="home-recent-icon"><Icon name={item.icon} size={18} /></span><span><strong>{item.title}</strong><small>{item.type} · {new Date(item.date).toLocaleDateString()}</small></span><span aria-hidden="true">→</span></button>)}</div> : <p>Your first conversation, rehearsal, or journal entry will appear here. Start with whatever feels right today.</p>}</div>
-      </div>
-    </section>}
+      {quickStarts.map(item => <button type="button" key={item.id} className={`home-tile home-quick home-quick--${item.tone}`} onClick={() => go(item)}>
+        <span className="home-quick-icon"><Icon name={item.icon} size={20} /></span>
+        <span className="home-quick-copy"><strong>{item.title}</strong><span>{item.detail}</span></span>
+        <span className="home-quick-arrow" aria-hidden="true">→</span>
+      </button>)}
+
+      <section className="home-tile home-recent" aria-labelledby="home-recent-heading">
+        <div className="home-tile-top"><h2 id="home-recent-heading">Pick up where you left off</h2>{recent.length > 0 && <button type="button" className="home-link" onClick={() => onNavigate('history')}>All history</button>}</div>
+        {!loaded ? <p className="home-muted">Loading your activity…</p>
+          : recent.length ? <ul className="home-recent-list">{recent.map(item => <li key={`${item.type}-${item.id}`}><button type="button" onClick={item.onClick}>
+            <span className={`home-recent-icon home-recent-icon--${RECENT_ICON[item.type]}`}><Icon name={RECENT_ICON[item.type]} size={17} /></span>
+            <span className="home-recent-copy"><strong>{item.title}</strong><small>{item.type} · {new Date(item.date).toLocaleDateString()}</small></span>
+            <span aria-hidden="true">→</span>
+          </button></li>)}</ul>
+          : <p className="home-muted">Your conversations, rehearsals and journal entries will appear here.</p>}
+      </section>
+    </div>
   </div>;
 }

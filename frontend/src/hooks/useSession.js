@@ -119,7 +119,7 @@ export function useSession({ topic, durationSecs, focus, persona, onSessionEnd }
 
   // Process a turn: audioBlob → API → reply text
   const processTurn = useCallback(
-    async (audioBlob) => {
+    async (audioBlob, { speakingSecs = null } = {}) => {
       if (sessionEndedRef.current) return;
       setAppState('processing');
 
@@ -139,6 +139,7 @@ export function useSession({ topic, durationSecs, focus, persona, onSessionEnd }
           role: 'user',
           content: data.transcript,
           corrections: data.corrections,
+          speakingSecs, // used for the per-turn word count / pace chip
         };
         
         setMessages((prev) => [...prev, userMsg]);

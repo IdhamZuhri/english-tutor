@@ -10,6 +10,8 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 export function useAudioRecorder() {
   const [isRecording, setIsRecording] = useState(false);
   const [micError, setMicError] = useState(null);
+  // The live mic stream, exposed so the UI can show a voice level meter.
+  const [stream, setStream] = useState(null);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
@@ -19,6 +21,7 @@ export function useAudioRecorder() {
   const releaseStream = () => {
     streamRef.current?.getTracks().forEach(track => track.stop());
     streamRef.current = null;
+    setStream(null);
   };
 
   const startRecording = useCallback(async () => {
@@ -38,6 +41,7 @@ export function useAudioRecorder() {
           },
         });
       streamRef.current = stream;
+      setStream(stream);
 
       chunksRef.current = [];
 
@@ -126,6 +130,7 @@ export function useAudioRecorder() {
   return {
     isRecording,
     micError,
+    stream,
     startRecording,
     stopRecording,
   };

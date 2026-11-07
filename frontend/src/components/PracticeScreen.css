@@ -52,16 +52,16 @@
 .practice-path--speech { border-top-color: rgba(91, 216, 224, .55); }
 .practice-path--journal { border-top-color: rgba(244, 188, 138, .6); }
 .practice-path-icon, .practice-inline-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 14px; color: var(--accent-light); background: var(--accent-dim); }
-.practice-path--speech .practice-path-icon { color: #a8edf3; background: rgba(14, 165, 177, .18); }
-.practice-path--journal .practice-path-icon { color: #f4bc8a; background: rgba(244, 188, 138, .14); }
+.practice-path--speech .practice-path-icon { color: var(--tone-speech); background: rgba(14, 165, 177, .18); }
+.practice-path--journal .practice-path-icon { color: var(--tone-journal); background: rgba(244, 188, 138, .14); }
 .practice-path-type { margin-top: 22px; color: var(--text-muted); font-size: .7rem; font-weight: 800; letter-spacing: .12em; }
 .practice-path h3 { margin: 7px 0 10px; font-size: 1.45rem; }
 .practice-path p { flex: 1; color: var(--text-secondary); font-size: .9rem; line-height: 1.65; overflow-wrap: anywhere; }
 .practice-path-meta { margin: 16px 0; color: var(--text-muted); font-size: .77rem; }
 .practice-path-action, .practice-path-secondary { border: 0; background: none; color: var(--accent-light); font: inherit; font-weight: 700; cursor: pointer; padding: 5px 0; text-align: left; }
 .practice-path-action { display: flex; justify-content: space-between; align-items: center; width: 100%; }
-.practice-path--speech .practice-path-action, .practice-path--speech .practice-path-secondary { color: #a8edf3; }
-.practice-path--journal .practice-path-action { color: #f4bc8a; }
+.practice-path--speech .practice-path-action, .practice-path--speech .practice-path-secondary { color: var(--tone-speech); }
+.practice-path--journal .practice-path-action { color: var(--tone-journal); }
 .practice-path-secondary { margin-top: 6px; font-size: .8rem; text-decoration: underline; text-underline-offset: 3px; }
 .practice-drills { scroll-margin-top: 24px; }
 .practice-work-heading { margin-top: 32px; }
