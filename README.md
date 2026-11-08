@@ -1,24 +1,35 @@
 # SpeakWell
 
-SpeakWell is a local English speaking practice app. Home helps you choose between AI conversation, public speaking rehearsal, a daily journal, personalized practice, videos, notes, and history. The app uses a Node.js server, a React frontend, a local JSON file for session history, and an OpenAI API key for transcription and feedback.
+**Build confidence speaking English through conversation practice, public speaking rehearsal, daily journaling, and personalized feedback.**
 
-## Requirements
+SpeakWell runs on your own computer. Your history stays in a local file, and OpenAI is used only for transcription and feedback.
 
-- Node.js 20 or newer and npm
-- An OpenAI API key with API access
-- A browser with microphone support
+---
 
-Python and PostgreSQL are not required for the current app.
+## Features
 
-## Run on Windows
+| | |
+|---|---|
+| 💬 **AI conversation** | Hold spoken conversations with an AI partner and get feedback on your replies. |
+| 🎤 **Public speaking** | Rehearse a presentation, story, or pitch with cue cards and a time goal, then get a transcript-based review. |
+| 🎲 **Surprise topic** | Spin for a random prompt and speak for 1–5 minutes without preparation. |
+| 📓 **Daily journal** | Write or speak guided reflections, answer gentle follow-up questions, and check your grammar if you want to. |
+| 🎯 **Weekly quest** | Set a weekly practice goal. There are no streaks and no penalties. |
+| 🕘 **History** | Review every conversation, rehearsal, and journal entry in one searchable timeline. |
 
-1. In `backend/.env`, set `OPENAI_API_KEY=...`. You can copy `backend/.env.example` if the file does not exist. Keep this file private.
-2. Double-click `start.bat`, or run `./start.bat` from PowerShell in this folder.
-3. Open <http://localhost:8000> and allow microphone access.
+---
 
-The launcher installs frontend packages if needed, builds the frontend, and starts one local server. Leave its terminal window open while using the app. Press Ctrl+C to stop it.
+## Quick start (Windows)
 
-## Run with commands
+**You need:** Node.js 20+, an [OpenAI API key](https://platform.openai.com/api-keys), and a browser with microphone support.
+
+1. Copy `backend/.env.example` to `backend/.env` and set `OPENAI_API_KEY=...`. Keep this file private.
+2. Double-click `start.bat`, or run `./start.bat` from PowerShell.
+3. Open **<http://localhost:8000>** and allow microphone access.
+
+The launcher installs packages, builds the frontend, and starts the server. Keep its window open while you use the app, and press **Ctrl+C** to stop it.
+
+### Run with commands
 
 ```powershell
 npm.cmd --prefix frontend install
@@ -26,39 +37,67 @@ npm.cmd run build
 npm.cmd start
 ```
 
-For frontend development, run `npm.cmd run dev` in another terminal, then open <http://localhost:5173>. Its `/api` requests proxy to the Node server on port 8000.
+**Frontend development:** run `npm.cmd run dev` in a second terminal and open <http://localhost:5173>. Requests to `/api` are proxied to port 8000.
+
+**Tests:** `npm.cmd test`
+
+---
+
+## How it works
+
+### Public speaking
+Choose a challenge or enter your own topic, add up to three cue cards, and set a time goal. After recording, you can listen back and request a review with strengths and one specific next step. Past reviews appear on the same page.
+
+> Feedback is based on your transcript, so it can't assess voice, pronunciation, eye contact, or body language. Audio stays in your browser and is not saved.
+
+### Surprise topic
+Spin for an AI-generated prompt, pick 1, 2, 3, or 5 minutes, and speak freely. Recording stops when time runs out. The review looks at how clearly you develop your idea with reasons and examples.
+
+### Daily journal
+Choose a guided reflection, gentle follow-up questions, or free journaling. You can write or record each response and mix both in one entry, then pick a mood, edit your text, and save. Entries are grouped by date, and spoken responses can be replayed. **Check grammar** runs only when you select it.
+
+### Weekly quest
+Choose 1, 2, 3, or 5 practices per week. A conversation counts once you send a spoken reply. A rehearsal counts once you save its review. The week runs Monday to Sunday in your local time.
+
+### History
+Filter by activity, search titles, and open any item to review it. You can export conversation transcripts as Markdown.
+
+---
 
 ## Using a phone
 
-The layout switches to a compact navigation menu on narrow screens. Recording must be started with a tap; the app will request microphone permission when you first record. Use a current browser and an HTTPS address when opening SpeakWell on a phone. A plain `http://` address to a computer on your local network is usually not a secure context, so mobile browsers will block microphone access. `http://localhost` works only on the same device running the server. Keep the server available while using conversation, public speaking, or spoken journaling; written journaling also needs the server to save entries.
+On narrow screens the layout switches to a compact menu. Mobile browsers allow the microphone only over **HTTPS**. A plain `http://` address to another computer on your network is usually blocked, and `http://localhost` works only on the device that runs the server.
 
-## Data and configuration
+---
 
-Sessions are stored in `backend/data/sessions.json`, created on first use and excluded from Git. Back up that file and `backend/data/journal-audio/` to preserve your history and journal recordings. `OPENAI_MODEL` in `backend/.env` selects the chat model; the default is `gpt-6-luna`. `PORT` can change the server port, but the Windows launcher opens port 8000.
+## Data & privacy
 
-The app currently displays text replies. Spoken replies and scored session analysis are not enabled in the current interface.
+| What | Where |
+|---|---|
+| Sessions and journal text | `backend/data/sessions.json` |
+| Journal recordings | `backend/data/journal-audio/` |
 
-## Weekly speaking quest
+Both are created when first needed and excluded from Git. **Back them up** to keep your history.
 
-Home shows a weekly goal for speaking practice. Choose 1, 2, 3, or 5 practices per week; the choice is saved in your browser. A conversation counts after you send at least one spoken reply, and a public speaking rehearsal counts after you request and save its review. The progress bar uses your device's local Monday-to-Sunday week and starts fresh each Monday. There is no daily streak or penalty for missing a day.
+Audio is sent to OpenAI only for transcription. Text is sent only for feedback, journal follow-up questions, and optional grammar checks.
 
-## Public speaking
+### Configuration (`backend/.env`)
 
-Open **Public Speaking** from the sidebar to rehearse a presentation, story, or persuasive pitch. Choose a challenge or enter your own topic, add up to three cue cards, and set a time goal. After recording, you can listen back and request a transcript-based review with strengths and one specific next step. Past reviews appear on the same page. SpeakWell saves the transcript and feedback in `backend/data/sessions.json`; the audio recording is only kept temporarily in the browser and is not saved. Feedback based on text cannot assess voice, pronunciation, eye contact, or body language.
+| Variable | Purpose | Default |
+|---|---|---|
+| `OPENAI_API_KEY` | Required API key | — |
+| `OPENAI_MODEL` | Chat model | `gpt-6-luna` |
+| `PORT` | Server port (the Windows launcher always opens 8000) | `8000` |
 
-For spontaneous speaking practice, choose **Surprise topic** and spin for an AI-generated prompt. Select 1, 2, 3, or 5 minutes and speak freely; the recording ends when time runs out. The review focuses on how clearly you develop your idea with reasons and examples. You can spin again before starting or finish early.
+> SpeakWell shows replies as text. Spoken replies and scored session analysis are not enabled yet.
 
-## Daily journal
-
-Open **Daily Journal** to make a guided reflection, answer a few gentle follow-up questions, or journal freely. Write or record each response, and mix both in one entry. Choose a mood, review or edit your text, and save. Entries are organized by date; spoken responses include replayable audio. **Check grammar** is optional and runs only when selected. Journal text is saved in `backend/data/sessions.json` and recordings in `backend/data/journal-audio/`. Audio is sent to OpenAI only for transcription; journal text is sent for follow-up questions and optional grammar review.
-
-## History
-
-**History** combines conversations, public speaking rehearsals, and journal entries in one timeline. Filter by activity, search titles, and open an item to review it. Conversation transcripts can be exported as Markdown from the Conversations filter.
+---
 
 ## Troubleshooting
 
-- If the page says the API key is missing, check `backend/.env` and restart the server.
-- If the browser cannot reach the app, check the launcher terminal for errors and confirm port 8000 is free.
-- If recording fails, allow microphone permission for `localhost` in your browser.
-- If an AI request fails, check your API key, network access, and OpenAI account limits. The server shows the returned error in its terminal.
+| Problem | Fix |
+|---|---|
+| "API key is missing" | Check `backend/.env`, then restart the server. |
+| Page won't load | Check the launcher window for errors and make sure port 8000 is free. |
+| Recording fails | Allow microphone permission for `localhost` in your browser. |
+| AI request fails | Check your API key, network connection, and OpenAI usage limits. The server window shows the error. |
