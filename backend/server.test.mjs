@@ -1,16 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile } from 'node:fs/promises';
-import os from 'node:os';
-import path from 'node:path';
+import { useDatabaseForTests } from './storage.mjs';
+import { fakeFirestore } from './fakeFirestore.mjs';
 
 test('local server serves the app and persists a conversation', async () => {
-  const tempDir = await mkdtemp(path.join(os.tmpdir(), 'speakwell-test-'));
-  const dataFile = path.join(tempDir, 'sessions.json');
-  process.env.SPEAKWELL_DATA_FILE = dataFile;
   process.env.OPENAI_API_KEY = 'test-key';
-  // Keep tests on the local JSON store even when backend/.env points at Firestore.
-  process.env.FIRESTORE_PROJECT_ID = '';
+  // Never touch the real Firestore project from tests.
+  const db = fakeFirestore();
+  useDatabaseForTests(db);
+  const stored = name => [...db.data.entries()].filter(([key]) => key.startsWith(`${name}/`) && !key.includes('#')).map(([, value]) => value);
   const { server } = await import('./server.mjs');
   const realFetch = globalThis.fetch;
   const completionPrompts = [];
@@ -175,12 +173,13 @@ test('local server serves the app and persists a conversation', async () => {
     assert.equal(detail.persona, 'chill');
     const exported = await (await realFetch(`${base}/api/export-history`)).json();
     assert.match(exported.markdown, /I go to school yesterday/);
-    const saved = JSON.parse(await readFile(dataFile, 'utf8'));
-    assert.equal(saved.sessions[0].history.length, 3);
-    assert.equal(saved.practiceAttempts.length, 1);
-    assert.equal(saved.speeches.length, 3);
-    assert.equal(saved.journalEntries.length, 3);
-    assert.equal(saved.journalEntries[0].grammar.suggestions.length, 1);
+    assert.equal(stored('sessions')[0].history.length, 3);
+    assert.equal(stored('practiceAttempts').length, 1);
+    assert.equal(stored('speeches').length, 3);
+    const journals = stored('journalEntries').sort((a, b) => a.id - b.id);
+    assert.equal(journals.length, 3);
+    assert.equal(journals[0].grammar.suggestions.length, 1);
+    assert.equal(stored('journalAudio').length, 2, 'both recorded journal answers are stored in Firestore');
   } finally {
     globalThis.fetch = realFetch;
     await new Promise(resolve => server.close(resolve));

@@ -1,28 +1,16 @@
-import { readFile, mkdir, writeFile, rename } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-// The app keeps all data in memory as one object and calls save() after each change.
-// This module persists that object either to a local JSON file (default) or to Firestore.
+// All app data lives in Firestore. The server keeps it in memory as one object and calls save()
+// after each change; only the documents that changed are written back.
 export const COLLECTIONS = ['sessions', 'practiceAttempts', 'speeches', 'journalEntries'];
+const AUDIO_COLLECTION = 'journalAudio';
+const AUDIO_CHUNK_BYTES = 900_000; // Firestore documents are limited to 1 MiB.
 const emptyStore = () => ({ nextId: 1, sessions: [], practiceAttempts: [], speeches: [], journalEntries: [] });
 
-function normalize(data) {
-  const store = { ...emptyStore(), ...data };
-  for (const name of COLLECTIONS) if (!Array.isArray(store[name])) store[name] = [];
-  store.nextId = Number(store.nextId) || 1;
-  return store;
-}
-
-async function readLocal(dataFile) {
-  try {
-    const data = JSON.parse(await readFile(dataFile, 'utf8'));
-    if (!Array.isArray(data.sessions)) throw new Error(`Invalid session store in ${dataFile}`);
-    return normalize(data);
-  } catch (error) {
-    if (error.code === 'ENOENT') return null;
-    throw error;
-  }
-}
+// Tests pass an in-memory database here instead of connecting to a real project.
+let databaseOverride = null;
+export function useDatabaseForTests(db) { databaseOverride = db; }
 
 // Runs saves one after another; a failed save is reported to its caller but never blocks later saves.
 function serial(write) {
@@ -34,33 +22,18 @@ function serial(write) {
   };
 }
 
-function localStorage(dataFile, store) {
-  return {
-    kind: 'local',
-    store,
-    save: serial(async () => {
-      const snapshot = JSON.stringify(store, null, 2);
-      await mkdir(path.dirname(dataFile), { recursive: true });
-      const temp = `${dataFile}.tmp`;
-      await writeFile(temp, snapshot);
-      await rename(temp, dataFile);
-    }),
-  };
-}
-
 // Records with an id are stored under that id; practice attempts have no id and are only ever
 // appended, so their position is used instead (zero-padded so documents sort in order).
 const docId = (name, item, index) => name !== 'practiceAttempts' && item?.id !== undefined ? String(item.id) : String(index).padStart(8, '0');
 
-async function firestoreStorage({ projectId, databaseId, credentialsPath, dataFile }) {
+async function connect({ projectId, databaseId, credentialsPath }) {
   let appModule, firestoreModule;
   try {
     [appModule, firestoreModule] = await Promise.all([import('firebase-admin/app'), import('firebase-admin/firestore')]);
   } catch {
-    throw new Error('FIRESTORE_PROJECT_ID is set but firebase-admin is not installed. Run "npm install" in the project root.');
+    throw new Error('firebase-admin is not installed. Run "npm install" in the project root.');
   }
   const { initializeApp, applicationDefault, cert, getApps } = appModule;
-  const { getFirestore } = firestoreModule;
   let credential;
   if (credentialsPath) {
     let key;
@@ -72,13 +45,13 @@ async function firestoreStorage({ projectId, databaseId, credentialsPath, dataFi
     credential = cert(key);
   } else credential = applicationDefault();
   const app = getApps().find(item => item.name === 'speakwell') || initializeApp({ projectId, credential }, 'speakwell');
-  const db = databaseId ? getFirestore(app, databaseId) : getFirestore(app);
+  const db = databaseId ? firestoreModule.getFirestore(app, databaseId) : firestoreModule.getFirestore(app);
   db.settings({ ignoreUndefinedProperties: true });
-  return { ...(await createFirestoreStorage(db, dataFile)), projectId };
+  return db;
 }
 
 // Keeps the in-memory store in sync with a Firestore database (passed in so it can be tested).
-export async function createFirestoreStorage(db, dataFile) {
+export async function createFirestoreStorage(db) {
   const metaRef = db.collection('meta').doc('app');
 
   // Load everything into memory, remembering what each document looked like when loaded.
@@ -86,10 +59,7 @@ export async function createFirestoreStorage(db, dataFile) {
   const store = emptyStore();
   const [meta, ...snapshots] = await Promise.all([metaRef.get(), ...COLLECTIONS.map(name => db.collection(name).get())]);
   COLLECTIONS.forEach((name, i) => {
-    const docs = snapshots[i].docs.sort((a, b) => {
-      const left = a.data(), right = b.data();
-      return name === 'practiceAttempts' ? a.id.localeCompare(b.id) : (Number(left.id) || 0) - (Number(right.id) || 0);
-    });
+    const docs = snapshots[i].docs.sort((a, b) => name === 'practiceAttempts' ? a.id.localeCompare(b.id) : (Number(a.data().id) || 0) - (Number(b.data().id) || 0));
     store[name] = docs.map(doc => doc.data());
     store[name].forEach((item, index) => saved.set(`${name}/${docId(name, item, index)}`, JSON.stringify(item)));
   });
@@ -100,9 +70,9 @@ export async function createFirestoreStorage(db, dataFile) {
     const writes = [];
     for (const name of COLLECTIONS) {
       store[name].forEach((item, index) => {
-        const key = `${name}/${docId(name, item, index)}`;
+        const id = docId(name, item, index);
         const json = JSON.stringify(item);
-        if (saved.get(key) !== json) writes.push({ key, json, ref: db.collection(name).doc(key.split('/')[1]), data: item });
+        if (saved.get(`${name}/${id}`) !== json) writes.push({ key: `${name}/${id}`, json, ref: db.collection(name).doc(id), data: item });
       });
     }
     const metaJson = JSON.stringify({ nextId: store.nextId });
@@ -116,27 +86,37 @@ export async function createFirestoreStorage(db, dataFile) {
     }
   });
 
-  const storage = { kind: 'firestore', store, save };
+  // Journal recordings are split into chunks so each stays under the document size limit.
+  const saveAudio = async (name, buffer, type) => {
+    const chunks = Math.max(1, Math.ceil(buffer.length / AUDIO_CHUNK_BYTES));
+    const batch = db.batch();
+    batch.set(db.collection(AUDIO_COLLECTION).doc(name), { type, size: buffer.length, chunks, created_at: new Date().toISOString() });
+    for (let index = 0; index < chunks; index++) {
+      batch.set(db.collection(AUDIO_COLLECTION).doc(`${name}#${index}`), { data: buffer.subarray(index * AUDIO_CHUNK_BYTES, (index + 1) * AUDIO_CHUNK_BYTES) });
+    }
+    await batch.commit();
+  };
+  const readAudio = async name => {
+    const head = await db.collection(AUDIO_COLLECTION).doc(name).get();
+    if (!head.exists) return null;
+    const { type, chunks } = head.data();
+    const parts = await Promise.all(Array.from({ length: chunks }, (_, index) => db.collection(AUDIO_COLLECTION).doc(`${name}#${index}`).get()));
+    if (parts.some(part => !part.exists)) return null;
+    return { type, buffer: Buffer.concat(parts.map(part => Buffer.from(part.data().data))) };
+  };
 
-  // First run against an empty Firestore project: copy existing local data up once.
-  const isEmpty = COLLECTIONS.every(name => store[name].length === 0) && !meta.exists;
-  const local = isEmpty && dataFile ? await readLocal(dataFile) : null;
-  if (local && COLLECTIONS.some(name => local[name].length)) {
-    Object.assign(store, local);
-    await save();
-    storage.migrated = Object.fromEntries(COLLECTIONS.map(name => [name, local[name].length]));
-  }
-  return storage;
+  return { kind: 'firestore', store, save, saveAudio, readAudio };
 }
 
-export async function openStorage({ dataFile, baseDir }) {
+export async function openStorage({ baseDir }) {
+  if (databaseOverride) return { ...(await createFirestoreStorage(databaseOverride)), projectId: 'test' };
   const projectId = process.env.FIRESTORE_PROJECT_ID?.trim();
-  if (!projectId) return localStorage(dataFile, (await readLocal(dataFile)) || emptyStore());
+  if (!projectId) throw new Error('FIRESTORE_PROJECT_ID is not set. SpeakWell stores all data in Firestore; add it and GOOGLE_APPLICATION_CREDENTIALS to backend/.env (see backend/.env.example).');
   const rawPath = process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim();
-  return firestoreStorage({
+  const db = await connect({
     projectId,
     databaseId: process.env.FIRESTORE_DATABASE_ID?.trim() || '',
     credentialsPath: rawPath ? path.resolve(baseDir, rawPath) : '',
-    dataFile,
   });
+  return { ...(await createFirestoreStorage(db)), projectId };
 }
