@@ -1,5 +1,40 @@
 .speech-screen { position: relative; z-index: 1; width: min(100%, 1060px); margin: 0 auto; padding: 48px 36px 88px; }
 .speech-header { max-width: 740px; margin-bottom: 34px; }
+/* After the prepare step the big intro is noise: keep only the eyebrow so the work stays above the fold. */
+.speech-header--compact { margin-bottom: 18px; }
+.speech-header--compact h1, .speech-header--compact p { display: none; }
+
+/* Surprise topic: wheel beside topic + launch, so everything fits in one view on desktop */
+.speech-surprise-grid { display: grid; grid-template-columns: minmax(280px, 1fr) minmax(0, 1.05fr); align-items: center; gap: clamp(20px, 4vw, 44px); }
+.speech-surprise-wheel { min-width: 0; }
+.speech-surprise-side { display: grid; gap: 14px; min-width: 0; }
+.speech-surprise-intro { margin-bottom: 8px; }
+.speech-surprise-intro h2 { margin: 6px 0 4px; }
+.speech-surprise-intro p { margin: 0; color: var(--text-secondary); }
+.speech-surprise .speech-surprise-topic { margin-top: 4px; min-height: 104px; align-content: center; }
+.speech-surprise-topic.is-empty { border-style: dashed; border-color: var(--border-strong); background: rgba(255,255,255,.02); animation: none; }
+.speech-surprise-topic.is-empty small { color: var(--text-muted); }
+.speech-surprise-topic.is-empty strong { color: var(--text-secondary); font-size: 1rem; font-weight: 600; }
+.speech-topic-skeleton { display: grid; gap: 8px; }
+.speech-topic-skeleton span { height: 14px; border-radius: 99px; background: linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,.16), rgba(255,255,255,.06)); background-size: 200% 100%; animation: speech-shimmer 1.2s linear infinite; }
+.speech-topic-skeleton span:last-child { width: 60%; }
+.speech-respin { margin: -4px 0 0; color: var(--text-muted); font-size: .8rem; }
+.speech-respin strong { color: var(--accent-light); letter-spacing: .06em; }
+.speech-prep { padding: 14px 16px; border: 1px solid var(--border-subtle); border-radius: 14px; background: rgba(255,255,255,.025); animation: fadeSlideUp .35s ease; }
+.speech-prep > small { color: var(--tone-speech); font-size: .68rem; font-weight: 800; letter-spacing: .12em; }
+.speech-prep ol { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 16px; margin: 10px 0 0; padding: 0; list-style: none; counter-reset: prep; }
+.speech-prep li { display: grid; grid-template-columns: 22px 1fr; gap: 0 8px; counter-increment: prep; font-size: .8rem; }
+.speech-prep li::before { content: counter(prep); grid-row: span 2; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 7px; background: var(--tone-speech-dim); color: var(--tone-speech); font-size: .7rem; font-weight: 800; }
+.speech-prep li strong { font-size: .82rem; }
+.speech-prep li span { color: var(--text-secondary); line-height: 1.35; }
+.speech-surprise-launch { display: grid; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border-subtle); }
+.speech-surprise-launch .speech-format-row { margin: 0; }
+.speech-surprise-launch .btn { justify-self: start; }
+.speech-surprise-launch small { color: var(--text-muted); font-size: .76rem; }
+.speech-cues--prep { grid-template-columns: repeat(4, 1fr); }
+@keyframes speech-shimmer { to { background-position: -200% 0; } }
+@media (max-width: 860px) { .speech-surprise-grid { grid-template-columns: 1fr; } .speech-surprise-launch .btn { justify-self: stretch; } .speech-cues--prep { grid-template-columns: repeat(2, 1fr); } }
+@media (prefers-reduced-motion: reduce) { .speech-topic-skeleton span, .speech-prep { animation: none; } }
 .speech-eyebrow, .speech-section-title > span { display: inline-flex; align-items: center; gap: 8px; color: var(--accent-light); font-size: .74rem; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; }
 .speech-header h1 { max-width: 720px; margin: 14px 0 12px; font-size: clamp(2.15rem, 4.5vw, 3.5rem); letter-spacing: -.055em; }
 .speech-header p, .speech-section-title p { color: var(--text-secondary); }
