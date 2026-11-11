@@ -58,17 +58,40 @@ export async function fetchSpeech(id) {
   return res.json();
 }
 
-export async function submitSpeech(audioBlob, details) {
+export async function submitSpeech(audioBlob, details, onEvent) {
   const form = new FormData();
   const ext = audioBlob.type.includes('mp4') ? 'm4a' : audioBlob.type.includes('ogg') ? 'ogg' : 'webm';
   form.append('audio', audioBlob, `speech.${ext}`);
   Object.entries(details).forEach(([key, value]) => form.append(key, String(value)));
-  const res = await fetch(`${BASE}/speeches`, { method: 'POST', body: form });
+  const fallback = 'Could not review your rehearsal. Please try again.';
+  // Ask for a streamed review so each step the AI takes can be shown while it works.
+  const res = await fetch(`${BASE}/speeches?stream=1`, { method: 'POST', body: form });
   if (!res.ok) {
     const error = await res.json().catch(() => ({}));
-    throw new Error(error.detail || 'Could not review your rehearsal. Please try again.');
+    throw new Error(error.detail || fallback);
   }
-  return res.json();
+  if (!res.headers.get('content-type')?.includes('ndjson') || !res.body) return res.json();
+  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();
+  let buffer = '';
+  let speech = null;
+  const handle = line => {
+    if (!line.trim()) return;
+    const event = JSON.parse(line);
+    if (event.type === 'error') throw new Error(event.detail || fallback);
+    if (event.type === 'result') speech = event.speech;
+    else onEvent?.(event);
+  };
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffer += value;
+    const lines = buffer.split('\n');
+    buffer = lines.pop();
+    lines.forEach(handle);
+  }
+  handle(buffer);
+  if (!speech) throw new Error(fallback);
+  return speech;
 }
 
 async function journalJson(res) {

@@ -12,17 +12,22 @@ test('local server serves the app and persists a conversation', async () => {
   const { server } = await import('./server.mjs');
   const realFetch = globalThis.fetch;
   const completionPrompts = [];
+  const transcriptionLanguages = [];
   globalThis.fetch = async (url, options) => {
     if (String(url).startsWith('http://127.0.0.1:')) return realFetch(url, options);
-    if (String(url).endsWith('/audio/transcriptions')) return Response.json({ text: 'I go to school yesterday.' });
+    if (String(url).endsWith('/audio/transcriptions')) {
+      transcriptionLanguages.push(options.body.get('language'));
+      return Response.json({ text: 'I go to school yesterday.' });
+    }
     const request = JSON.parse(options.body);
     completionPrompts.push(request.messages);
     if (request.response_format) {
       if (request.messages[0]?.content?.includes('Create one fresh, accessible English speaking topic')) return Response.json({ choices: [{ message: { content: JSON.stringify({ topic: 'Should every town have a public garden?' }) } }] });
+      if (request.messages[0]?.content?.includes('careful English grammar coach')) return Response.json({ choices: [{ message: { content: JSON.stringify({ summary: 'Mostly clear, with one tense slip.', corrections: [{ original: 'I go', corrected: 'I went', explanation: 'Use past tense for yesterday.', category: 'Verb tense' }], patterns: [{ name: 'Present tense for past events', count: 1, explanation: 'Finished actions need the past tense.', tip: 'Yesterday means past tense.', examples: [{ original: 'I go', corrected: 'I went' }] }], correctedTranscript: 'I went to school yesterday.' }) } }] });
       const isSpeech = request.messages[0]?.content?.includes('public speaking coach');
       const isJournalGrammar = request.messages[0]?.content?.includes('supportive English editor');
       return Response.json({ choices: [{ message: { content: JSON.stringify(isSpeech
-        ? { headline: 'A clear first rehearsal.', strengths: ['Your opening introduces the topic.'], nextStep: 'Add one concrete example.', openingSuggestion: 'Let me tell you why this matters.' }
+        ? { headline: 'A clear first rehearsal.', strengths: ['Your opening introduces the topic.'], nextStep: 'Add one concrete example.', openingSuggestion: 'Let me tell you why this matters.', polishedTranscript: 'Yesterday, I went to school.' }
         : isJournalGrammar ? { summary: 'One small past-tense fix may help.', suggestions: [{ responseIndex: 0, original: 'I go', improved: 'I went', explanation: 'Use past tense for yesterday.' }] }
         : { has_corrections: true, corrected_sentence: 'I went to school yesterday.', corrections: [{ original: 'go', corrected: 'went', explanation: 'Past tense' }] }) } }] });
     }
@@ -81,6 +86,11 @@ test('local server serves the app and persists a conversation', async () => {
     const speech = await speechResponse.json();
     assert.equal(speech.feedback.pace, 5);
     assert.equal(speech.feedback.nextStep, 'Add one concrete example.');
+    assert.equal(speech.feedback.grammar.corrections[0].corrected, 'I went');
+    assert.equal(speech.feedback.grammar.patterns[0].name, 'Present tense for past events');
+    assert.equal(speech.feedback.grammar.correctedTranscript, 'I went to school yesterday.');
+    assert.equal(speech.feedback.polishedTranscript, 'Yesterday, I went to school.');
+    assert.ok(transcriptionLanguages.length > 0 && transcriptionLanguages.every(language => language === 'en'));
     assert.equal((await (await realFetch(`${base}/api/speeches`)).json())[0].title, 'My first presentation');
     assert.equal((await (await realFetch(`${base}/api/speeches/${speech.id}`)).json()).transcript, 'I go to school yesterday.');
     const impromptuForm = new FormData();
@@ -93,6 +103,20 @@ test('local server serves the app and persists a conversation', async () => {
     assert.equal(impromptuResponse.status, 201);
     assert.equal((await impromptuResponse.json()).format, 'Impromptu');
     assert.ok(completionPrompts.some(messages => messages[0]?.content?.includes('unprepared response to a random topic')));
+    const streamForm = new FormData();
+    streamForm.append('audio', new Blob([Buffer.alloc(9000)], { type: 'audio/webm' }), 'speech.webm');
+    streamForm.append('title', 'Should every town have a public garden?');
+    streamForm.append('format', 'Impromptu');
+    streamForm.append('outline', '');
+    streamForm.append('durationSecs', '60');
+    const streamResponse = await realFetch(`${base}/api/speeches?stream=1`, { method: 'POST', body: streamForm });
+    assert.match(streamResponse.headers.get('content-type'), /ndjson/);
+    const events = (await streamResponse.text()).trim().split('\n').map(line => JSON.parse(line));
+    const doneSteps = events.filter(event => event.type === 'progress' && event.status === 'done').map(event => event.step);
+    assert.deepEqual(['upload', 'transcribe', 'delivery', 'grammar', 'evaluate', 'report'].filter(id => !doneSteps.includes(id)), []);
+    assert.equal(events.find(event => event.type === 'transcript').transcript, 'I go to school yesterday.');
+    assert.equal(events.at(-1).type, 'result');
+    assert.equal(events.at(-1).speech.feedback.grammar.corrections.length, 1);
 
     const journalAudio = new Blob([Buffer.alloc(9000)], { type: 'audio/webm' });
     const transcriptionForm = new FormData();
@@ -152,7 +176,7 @@ test('local server serves the app and persists a conversation', async () => {
     const saved = JSON.parse(await readFile(dataFile, 'utf8'));
     assert.equal(saved.sessions[0].history.length, 3);
     assert.equal(saved.practiceAttempts.length, 1);
-    assert.equal(saved.speeches.length, 2);
+    assert.equal(saved.speeches.length, 3);
     assert.equal(saved.journalEntries.length, 3);
     assert.equal(saved.journalEntries[0].grammar.suggestions.length, 1);
   } finally {

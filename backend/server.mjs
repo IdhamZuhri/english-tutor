@@ -125,12 +125,91 @@ function parseForm(req, bytes) {
   return new Request('http://localhost/', { method: 'POST', headers: { 'content-type': req.headers['content-type'] || '' }, body: bytes }).formData();
 }
 
-async function transcribe(audio) {
+// Learners often speak English with a Malaysian or other non-native accent. Without an explicit
+// language, Whisper may auto-detect Malay and return a Malay rendering of English speech, so every
+// transcription is locked to English and asked to keep the learner's exact words.
+const englishTranscriptPrompt = 'The speaker is an English learner speaking English. Transcribe exactly what they say in English, keeping their grammar mistakes, repetitions, and filler words such as um and uh. Do not translate or correct.';
+async function transcribe(audio, fallbackName = 'audio.webm') {
   const audioForm = new FormData();
-  audioForm.append('file', audio, audio.name || 'journal.webm');
+  audioForm.append('file', audio, audio.name || fallbackName);
   audioForm.append('model', 'whisper-1');
+  audioForm.append('language', 'en');
+  audioForm.append('prompt', englishTranscriptPrompt);
   const transcription = await openai('audio/transcriptions', audioForm, true);
   return transcription.text?.trim() || '';
+}
+
+const fillerPattern = /\b(um+|uh+|erm+|er|ah+|hmm+|you know|i mean|kind of|sort of|basically|actually|like)\b/gi;
+const speechCriteria = ['Task response', 'Organisation', 'Fluency & coherence', 'Vocabulary range', 'Grammatical accuracy'];
+const speechLevels = ['Needs focus', 'Developing', 'Good', 'Strong'];
+const text = (value, max) => String(value ?? '').trim().slice(0, max);
+const list = (value, max) => (Array.isArray(value) ? value : []).slice(0, max);
+const plural = (count, word, many = `${word}s`) => `${count} ${count === 1 ? word : many}`;
+
+function deliveryStats(transcript, durationSecs) {
+  const words = transcript.match(/\b[\w'-]+\b/g) || [];
+  const fillers = {};
+  for (const match of transcript.matchAll(fillerPattern)) {
+    const key = match[1].toLowerCase().replace(/m+$/, 'm').replace(/h+$/, 'h').replace(/^hm$/, 'hmm');
+    fillers[key] = (fillers[key] || 0) + 1;
+  }
+  const fillerCount = Object.values(fillers).reduce((sum, count) => sum + count, 0);
+  const sentences = transcript.split(/[.!?]+/).map(item => item.trim()).filter(Boolean);
+  const unique = new Set(words.map(word => word.toLowerCase()));
+  return {
+    wordCount: words.length,
+    pace: Math.round(words.length / (durationSecs / 60)),
+    fillerCount,
+    fillerBreakdown: Object.entries(fillers).sort((a, b) => b[1] - a[1]).map(([word, count]) => ({ word, count })),
+    sentenceCount: sentences.length,
+    avgSentenceLength: sentences.length ? Math.round(words.length / sentences.length) : words.length,
+    lexicalVariety: words.length ? Math.round(unique.size / words.length * 100) : 0,
+  };
+}
+
+async function checkSpeechGrammar(transcript) {
+  const raw = await complete([
+    { role: 'system', content: "You are a careful English grammar coach reviewing a transcript of an English learner speaking English. The transcript is already in English: never translate it into Malay or any other language, and write every field in English. Quote the learner's words exactly as they appear in the transcript. Spoken English may be informal, so only flag clear grammar, word-form, word-choice, or sentence-structure errors (not filler words, contractions, or style). Return JSON with: summary (one or two sentences describing their overall grammatical accuracy), corrections (array, at most 15, in transcript order, each with original (exact excerpt), corrected, explanation (short, learner-friendly), category (one of Verb tense, Subject-verb agreement, Articles, Prepositions, Plurals, Word form, Word choice, Sentence structure, Pronouns, Other)), patterns (array of the mistake types the learner made most often or repeated, at most 4, each with name, count (how many times it happened), explanation (why it is wrong and the rule), tip (a short memorable rule to fix it), and examples (1-3 objects with original and corrected taken from the transcript)), and correctedTranscript (the full transcript with only the errors fixed, keeping the learner's ideas and wording otherwise). If there are no errors, return empty arrays and correctedTranscript equal to the transcript." },
+    { role: 'user', content: JSON.stringify({ transcript }) },
+  ], true);
+  const corrections = list(raw.corrections, 15)
+    .map(item => ({ original: text(item?.original, 300), corrected: text(item?.corrected, 300), explanation: text(item?.explanation, 300), category: text(item?.category, 40) || 'Other' }))
+    .filter(item => item.original && item.corrected && item.original !== item.corrected);
+  const patterns = list(raw.patterns, 4).map(item => ({
+    name: text(item?.name, 80),
+    count: Math.max(1, Math.min(99, Math.round(Number(item?.count) || 1))),
+    explanation: text(item?.explanation, 400),
+    tip: text(item?.tip, 240),
+    examples: list(item?.examples, 3).map(example => ({ original: text(example?.original, 200), corrected: text(example?.corrected, 200) })).filter(example => example.original),
+  })).filter(item => item.name);
+  return { summary: text(raw.summary, 400), corrections, patterns, correctedTranscript: text(raw.correctedTranscript, 8000) || transcript };
+}
+
+async function evaluateSpeech({ title, format, outline, transcript, stats, durationSecs }) {
+  const raw = await complete([
+    { role: 'system', content: `You are a supportive public speaking coach for English learners. Assess only the supplied transcript, topic, outline, and transcript statistics. ${format === 'Impromptu' ? 'This is an unprepared response to a random topic. Focus on whether the learner develops a clear idea with relevant reasons, details, or examples. Suggest one concrete way to elaborate further.' : 'Focus on the structure and clarity of the prepared speech.'} The transcript is English: never translate anything into Malay or any other language, and write every field in English. Return JSON with: headline (one short encouraging sentence), overview (2-3 sentences summarising the performance), criteria (array with exactly these names in order: ${speechCriteria.join(', ')}; each with name, level (one of ${speechLevels.join(', ')}), and comment (1-2 specific sentences that quote or refer to the transcript)), strengths (array of 2-3 specific observations), improvements (array of 2-3 specific, actionable areas to improve), vocabulary (array of at most 4 objects with original (a plain or repeated word or phrase they used), better (a more precise or varied alternative), and example (a sentence using it in their context)), structure (object with opening, body, and closing, each one sentence on how well that part worked), nextStep (one concrete action for the next rehearsal), openingSuggestion (one improved opening sentence), and polishedTranscript (a polished version of their WHOLE speech: cover every idea they said, in the same order and at roughly the same length, but remove fillers and false starts, fix every grammar mistake, use more precise vocabulary, and add smooth linking words so it sounds like a confident, natural spoken English speech by the same speaker; do not summarise or shorten it, and do not add new arguments). Do not claim to assess vocal delivery, eye contact, body language, confidence, or pronunciation. Do not give numeric scores.` },
+    { role: 'user', content: JSON.stringify({ title, format, outline, transcript, durationSecs, stats: { wordCount: stats.wordCount, wordsPerMinute: stats.pace, fillerWords: stats.fillerCount, averageSentenceLength: stats.avgSentenceLength } }) },
+  ], true);
+  const criteria = speechCriteria.map(name => {
+    const found = list(raw.criteria, 8).find(item => String(item?.name || '').toLowerCase() === name.toLowerCase()) || {};
+    const level = speechLevels.find(option => option.toLowerCase() === String(found.level || '').toLowerCase()) || 'Developing';
+    return { name, level, comment: text(found.comment, 400) };
+  }).filter(item => item.comment);
+  const structure = raw.structure && typeof raw.structure === 'object'
+    ? { opening: text(raw.structure.opening, 300), body: text(raw.structure.body, 300), closing: text(raw.structure.closing, 300) }
+    : null;
+  return {
+    headline: text(raw.headline, 240) || 'You completed a rehearsal.',
+    overview: text(raw.overview, 600),
+    criteria,
+    strengths: list(raw.strengths, 3).map(value => text(value, 300)).filter(Boolean),
+    improvements: list(raw.improvements, 3).map(value => text(value, 300)).filter(Boolean),
+    vocabulary: list(raw.vocabulary, 4).map(item => ({ original: text(item?.original, 80), better: text(item?.better, 80), example: text(item?.example, 240) })).filter(item => item.original && item.better),
+    structure: structure && (structure.opening || structure.body || structure.closing) ? structure : null,
+    nextStep: text(raw.nextStep, 300) || 'Try one more rehearsal with a clear opening and close.',
+    openingSuggestion: text(raw.openingSuggestion, 300),
+    polishedTranscript: text(raw.polishedTranscript, 10000),
+  };
 }
 
 function journalDetail(entry) {
@@ -148,7 +227,7 @@ async function api(req, res, pathname, searchParams) {
     const form = await parseForm(req, await bodyBytes(req, 16_000_000));
     const audio = form.get('audio');
     if (!audio || typeof audio.arrayBuffer !== 'function' || audio.size < 8000 || audio.size > 15_000_000 || !audioTypes[String(audio.type || '').split(';')[0]]) return json(res, 400, { detail: 'Record at least a few seconds of supported audio to add a journal response.' });
-    const transcript = await transcribe(audio);
+    const transcript = await transcribe(audio, 'journal.webm');
     if (transcript.split(/\s+/).length < 2) return json(res, 422, { detail: 'We could not hear enough speech. Please try again.' });
     return json(res, 200, { transcript: transcript.slice(0, 6000) });
   }
@@ -255,30 +334,54 @@ async function api(req, res, pathname, searchParams) {
     if (!title || !['Presentation', 'Storytelling', 'Persuasive pitch', 'Impromptu'].includes(format) || !Number.isFinite(durationSecs) || durationSecs < 5 || durationSecs > 900 || !audio || typeof audio.arrayBuffer !== 'function' || audio.size < 8000) {
       return json(res, 400, { detail: 'Record at least a few seconds and complete the speech details.' });
     }
-    const audioForm = new FormData();
-    audioForm.append('file', audio, audio.name || 'speech.webm');
-    audioForm.append('model', 'whisper-1');
-    const transcription = await openai('audio/transcriptions', audioForm, true);
-    const transcript = transcription.text?.trim();
-    if (!transcript || transcript.split(/\s+/).length < 5) return json(res, 422, { detail: 'We could not hear enough speech. Try recording again in a quieter place.' });
-    const words = transcript.match(/\b[\w'-]+\b/g) || [];
-    const fillerCount = (transcript.match(/\b(um|uh|erm|you know|like)\b/gi) || []).length;
-    const pace = Math.round(words.length / (durationSecs / 60));
-    const raw = await complete([
-      { role: 'system', content: `You are a supportive public speaking coach. Assess only the supplied transcript, topic, and outline. ${format === 'Impromptu' ? 'This is an unprepared response to a random topic. Focus on whether the learner develops a clear idea with relevant reasons, details, or examples. Suggest one concrete way to elaborate further.' : 'Focus on the structure and clarity of the prepared speech.'} Return JSON with headline (one short encouraging sentence), strengths (array of 1-2 specific observations), nextStep (one concrete action for the next rehearsal), and openingSuggestion (one optional improved opening sentence). Do not claim to assess vocal delivery, eye contact, body language, confidence, or pronunciation. Avoid numeric scores.` },
-      { role: 'user', content: JSON.stringify({ title, format, outline, transcript }) },
-    ], true);
-    const feedback = {
-      headline: String(raw.headline || 'You completed a rehearsal.').slice(0, 240),
-      strengths: (Array.isArray(raw.strengths) ? raw.strengths : []).slice(0, 2).map(value => String(value).slice(0, 300)),
-      nextStep: String(raw.nextStep || 'Try one more rehearsal with a clear opening and close.').slice(0, 300),
-      openingSuggestion: String(raw.openingSuggestion || '').slice(0, 300),
-      wordCount: words.length, pace, fillerCount,
+    // With ?stream=1 the client receives NDJSON progress events, so it can show each review step live.
+    const streaming = searchParams.get('stream') === '1';
+    const send = event => { if (streaming && !res.writableEnded) res.write(`${JSON.stringify(event)}\n`); };
+    const step = (id, status, detail = '') => send({ type: 'progress', step: id, status, detail });
+    const fail = (status, detail) => {
+      if (!streaming) return json(res, status, { detail });
+      send({ type: 'error', status, detail });
+      res.end();
     };
-    const speech = { id: store.nextId++, title, format, outline, durationSecs: Math.round(durationSecs), transcript, feedback, created_at: new Date().toISOString() };
-    store.speeches.push(speech);
-    await save();
-    return json(res, 201, speech);
+    if (streaming) res.writeHead(200, { 'content-type': 'application/x-ndjson; charset=utf-8', 'cache-control': 'no-store', 'x-accel-buffering': 'no' });
+    try {
+      step('upload', 'done', `${Math.max(1, Math.round(audio.size / 1024))} KB recording received`);
+      step('transcribe', 'active', 'Listening to your recording in English');
+      const transcript = await transcribe(audio, 'speech.webm');
+      if (!transcript || transcript.split(/\s+/).length < 5) return fail(422, 'We could not hear enough speech. Try recording again in a quieter place.');
+      const stats = deliveryStats(transcript, durationSecs);
+      step('transcribe', 'done', `Heard ${plural(stats.wordCount, 'word')}`);
+      send({ type: 'transcript', transcript });
+      step('delivery', 'done', `${stats.pace} words/min · ${plural(stats.fillerCount, 'filler word')} · ${plural(stats.sentenceCount, 'sentence')}`);
+      step('grammar', 'active', 'Checking every sentence for grammar mistakes');
+      step('evaluate', 'active', 'Rating task response, organisation, fluency, vocabulary and accuracy');
+      const [grammar, evaluation] = await Promise.all([
+        checkSpeechGrammar(transcript).then(result => {
+          const found = result.corrections.length
+            ? `Found ${plural(result.corrections.length, 'correction')}${result.patterns.length ? ` and ${plural(result.patterns.length, 'repeated pattern')}` : ''}`
+            : 'No clear grammar mistakes found';
+          step('grammar', 'done', found);
+          return result;
+        }),
+        evaluateSpeech({ title, format, outline, transcript, stats, durationSecs }).then(result => {
+          step('evaluate', 'done', `${plural(result.criteria.length, 'criterion', 'criteria')} assessed`);
+          return result;
+        }),
+      ]);
+      step('report', 'active', 'Putting your report together');
+      const feedback = { ...evaluation, ...stats, grammar };
+      const speech = { id: store.nextId++, title, format, outline, durationSecs: Math.round(durationSecs), transcript, feedback, created_at: new Date().toISOString() };
+      store.speeches.push(speech);
+      await save();
+      step('report', 'done', 'Report ready');
+      if (!streaming) return json(res, 201, speech);
+      send({ type: 'result', speech });
+      return res.end();
+    } catch (error) {
+      if (!streaming) throw error;
+      console.error(error);
+      return fail(error.status || 500, error.message || 'Could not review your rehearsal. Please try again.');
+    }
   }
   const speechMatch = pathname.match(/^\/api\/speeches\/(\d+)$/);
   if (speechMatch && req.method === 'GET') {
@@ -305,11 +408,7 @@ async function api(req, res, pathname, searchParams) {
     const session = store.sessions.find(s => s.id === Number(form.get('session_id')));
     if (!session) return json(res, 404, { detail: 'Session not found' });
     if (!audio || typeof audio.arrayBuffer !== 'function' || audio.size < 8000) return json(res, 200, { error: 'silent', message: "I didn't catch that. Please try again." });
-    const audioForm = new FormData();
-    audioForm.append('file', audio, audio.name || 'audio.webm');
-    audioForm.append('model', 'whisper-1');
-    const transcription = await openai('audio/transcriptions', audioForm, true);
-    const transcript = transcription.text?.trim();
+    const transcript = await transcribe(audio, 'audio.webm');
     if (!transcript || transcript.split(/\s+/).length < 2) return json(res, 200, { error: 'empty', message: "I didn't catch that. Please try again." });
     const history = safeMessages(session.history);
     const [reply, rawCorrections] = await Promise.all([
@@ -387,7 +486,8 @@ export const server = http.createServer(async (req, res) => {
     else json(res, 405, { detail: 'Method not allowed' });
   } catch (error) {
     console.error(error);
-    json(res, error.status || 500, { detail: error.message || 'Internal server error' });
+    if (res.headersSent) res.end();
+    else json(res, error.status || 500, { detail: error.message || 'Internal server error' });
   }
 });
 

@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from './Icon.jsx';
+import AudioPlayer from './AudioPlayer.jsx';
 import TopicWheel, { SPIN_MS, WHEEL_THEMES } from './TopicWheel.jsx';
 import { useAudioRecorder } from '../hooks/useAudioRecorder.js';
 import { fetchSpeech, fetchSpeeches, fetchSurpriseTopic, submitSpeech } from '../services/api.js';
+import { ReviewProgress, SpeechReport, initialReviewSteps } from './SpeechReview.jsx';
 import './PublicSpeakingScreen.css';
 
 const challenges = [
@@ -36,6 +38,10 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [reviewSteps, setReviewSteps] = useState(initialReviewSteps);
+  const [reviewTranscript, setReviewTranscript] = useState('');
+  const [reviewStartedAt, setReviewStartedAt] = useState(0);
   const recordingRef = useRef(false);
   const topicRequestRef = useRef(0);
   const { isRecording, micError, startRecording, stopRecording } = useAudioRecorder();
@@ -121,14 +127,23 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
   const getFeedback = async () => {
     if (!audioBlob || busy) return;
     setBusy(true);
+    setReviewing(true);
     setError('');
+    setReviewTranscript('');
+    setReviewStartedAt(Date.now());
+    setReviewSteps({ ...initialReviewSteps(), upload: { status: 'active', detail: `Sending ${formatTime(elapsed)} of audio` } });
+    const onEvent = event => {
+      if (event.type === 'transcript') setReviewTranscript(event.transcript);
+      if (event.type === 'progress') setReviewSteps(current => ({ ...current, [event.step]: { status: event.status, detail: event.detail } }));
+    };
     try {
-      const speech = await submitSpeech(audioBlob, { title: title.trim(), format, outline: outline.filter(Boolean).join('\n'), durationSecs: elapsed });
+      const speech = await submitSpeech(audioBlob, { title: title.trim(), format, outline: outline.filter(Boolean).join('\n'), durationSecs: elapsed }, onEvent);
       setResult(speech);
       setStep('result');
+      window.scrollTo?.({ top: 0, behavior: 'smooth' });
       fetchSpeeches().then(setRecent).catch(() => {});
     } catch (err) { setError(err.message); }
-    finally { setBusy(false); }
+    finally { setBusy(false); setReviewing(false); }
   };
   const openRecent = async id => {
     setBusy(true);
@@ -187,10 +202,12 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
 
     {step === 'rehearse' && <section className="speech-stage glass-card"><span className="speech-live"><span /> RECORDING</span><h2>{title}</h2><p>{mode === 'impromptu' ? `Surprise topic · ${target} ${target === 1 ? 'minute' : 'minutes'} to speak` : `${format} · Aim for ${target} ${target === 1 ? 'minute' : 'minutes'}`}</p><div className="speech-timer" aria-live="off">{formatTime(mode === 'impromptu' ? Math.max(0, target * 60 - elapsed) : elapsed)}</div><div className="speech-timebar"><span style={{ width: `${Math.min(100, elapsed / (target * 60) * 100)}%` }} /></div><p className="speech-timehint">{mode === 'impromptu' ? 'Keep going with a reason, example, or another angle. Recording stops when time is up.' : elapsed >= target * 60 ? 'You reached your goal. Finish whenever you are ready.' : 'Take your time. Pause between ideas.'}</p>{mode === 'prepared' && <><button type="button" className="speech-cue-toggle" onClick={() => setShowCues(value => !value)} aria-expanded={showCues}>{showCues ? 'Hide' : 'Show'} cue cards</button>{showCues && <div className="speech-cues">{['Opening', 'Main point', 'Closing'].map((label, index) => <div key={label}><small>{label}</small><strong>{outline[index] || formatTips[format][index]}</strong></div>)}</div>}</>}<button type="button" className="btn btn-primary btn-lg" onClick={finish}><Icon name="check" size={18} /> {mode === 'impromptu' ? 'Finish early' : 'Finish rehearsal'}</button></section>}
 
-    {step === 'review' && <section className="speech-review glass-card"><span className="speech-eyebrow">REHEARSAL COMPLETE</span><h2>You showed up and spoke.</h2><p>Listen back if you like, then get feedback on your words and structure.</p><div className="speech-review-meta"><span><Icon name="history" size={17} /> {formatTime(elapsed)} spoken</span><span><Icon name="mic" size={17} /> {title}</span></div>{audioUrl && <audio controls src={audioUrl} aria-label="Play your rehearsal recording" />}<div className="speech-actions"><button type="button" className="btn btn-secondary" onClick={reset}>Start over</button><button type="button" className="btn btn-primary" disabled={busy} onClick={getFeedback}>{busy ? 'Reviewing your speech…' : 'Get my feedback'}</button></div><small>Your recording stays in this browser until you leave this screen. Only the transcript and feedback are saved.</small></section>}
+    {step === 'review' && reviewing && <ReviewProgress steps={reviewSteps} transcript={reviewTranscript} startedAt={reviewStartedAt} />}
+
+    {step === 'review' && !reviewing && <section className="speech-review glass-card"><span className="speech-eyebrow">REHEARSAL COMPLETE</span><h2>You showed up and spoke.</h2><p>Listen back if you like, then get feedback on your words and structure.</p><div className="speech-review-meta"><span><Icon name="history" size={17} /> {formatTime(elapsed)} spoken</span><span><Icon name="mic" size={17} /> {title}</span></div>{audioUrl && <AudioPlayer src={audioUrl} knownDuration={elapsed} label="Your rehearsal recording" />}<div className="speech-actions"><button type="button" className="btn btn-secondary" onClick={reset}>Start over</button><button type="button" className="btn btn-primary" disabled={busy} onClick={getFeedback}>{busy ? 'Reviewing your speech…' : 'Get my feedback'}</button></div><small>Your recording stays in this browser until you leave this screen. Only the transcript and feedback are saved.</small></section>}
 
     {step === 'result' && result && onBackToHistory && <button type="button" className="speech-history-back" onClick={onBackToHistory}>← Back to History</button>}
     {step === 'result' && result && <p className="speech-quest-credit"><Icon name="award" size={17} /> This reviewed speech counts toward your weekly speaking quest.</p>}
-    {step === 'result' && result && <section className="speech-result"><div className="speech-result-hero glass-card"><span className="speech-eyebrow">YOUR REHEARSAL REVIEW</span><h2>{result.feedback.headline}</h2><p>{result.title} · {result.format} · {formatTime(result.durationSecs)}</p><div className="speech-metrics"><div><strong>{result.feedback.wordCount}</strong><span>words spoken</span></div><div><strong>{result.feedback.pace}</strong><span>words / min</span></div><div><strong>{result.feedback.fillerCount}</strong><span>possible filler words</span></div></div><small>Pace and filler counts are estimates from the transcript.</small></div><div className="speech-feedback-grid"><div className="glass-card"><span className="speech-eyebrow">WHAT WORKED</span>{result.feedback.strengths.length ? result.feedback.strengths.map((strength, index) => <p key={index}><Icon name="check" size={17} />{strength}</p>) : <p>You completed a full rehearsal and gave yourself something to build on.</p>}</div><div className="glass-card speech-next"><span className="speech-eyebrow">ONE THING TO TRY NEXT</span><h3>{result.feedback.nextStep}</h3>{result.feedback.openingSuggestion && <p><strong>Opening idea:</strong> “{result.feedback.openingSuggestion}”</p>}</div></div><details className="speech-transcript glass-card"><summary>Read your transcript</summary><p>{result.transcript}</p></details><div className="speech-actions"><button type="button" className="btn btn-secondary" onClick={reset}>Choose a new topic</button><button type="button" className="btn btn-primary" onClick={begin}><Icon name="mic" size={17} /> Rehearse again</button></div></section>}
+    {step === 'result' && result && <section className="speech-result"><SpeechReport key={result.id} result={result} /><div className="speech-actions"><button type="button" className="btn btn-secondary" onClick={reset}>Choose a new topic</button><button type="button" className="btn btn-primary" onClick={begin}><Icon name="mic" size={17} /> Rehearse again</button></div></section>}
   </div>;
 }
