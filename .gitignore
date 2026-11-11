@@ -20,3 +20,7 @@ backend/data/
 
 # Graphify (rebuild with /graphify . --update)
 graphify-out/
+
+# Firebase / Google service account keys (never commit)
+backend/*service-account*.json
+*-firebase-adminsdk-*.json

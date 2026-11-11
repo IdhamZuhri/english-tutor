@@ -74,10 +74,18 @@ On narrow screens the layout switches to a compact menu. Mobile browsers allow t
 
 | What | Where |
 |---|---|
-| Sessions and journal text | `backend/data/sessions.json` |
-| Journal recordings | `backend/data/journal-audio/` |
+| Sessions, rehearsals, practice and journal text | `backend/data/sessions.json`, or Firestore when configured |
+| Journal recordings | `backend/data/journal-audio/` (always local) |
 
-Both are created when first needed and excluded from Git. **Back them up** to keep your history.
+Local files are created when first needed and excluded from Git. **Back them up** to keep your history.
+
+#### Storing data in Firestore
+
+1. In the Firebase console, open the project → **Build → Firestore Database** and create a database if you have not yet.
+2. **Project settings → Service accounts → Generate new private key**, and save the file as `backend/firebase-service-account.json` (it is ignored by Git; never share it).
+3. In `backend/.env` set `FIRESTORE_PROJECT_ID` and `GOOGLE_APPLICATION_CREDENTIALS` (see `backend/.env.example`), then restart.
+
+Each record is a document in the `sessions`, `speeches`, `practiceAttempts` and `journalEntries` collections, with the id counter in `meta/app`. The first time the app starts with an empty Firestore project, it copies your existing `sessions.json` data up; it never overwrites a project that already has data. `GET /api/health` shows which storage is active.
 
 Audio is sent to OpenAI only for transcription. Text is sent only for feedback, journal follow-up questions, and optional grammar checks.
 
@@ -88,6 +96,9 @@ Audio is sent to OpenAI only for transcription. Text is sent only for feedback, 
 | `OPENAI_API_KEY` | Required API key | — |
 | `OPENAI_MODEL` | Chat model | `gpt-6-luna` |
 | `PORT` | Server port (the Windows launcher always opens 8000) | `8000` |
+| `FIRESTORE_PROJECT_ID` | Store data in this Firestore project instead of the local file | empty (local file) |
+| `GOOGLE_APPLICATION_CREDENTIALS` | Path to the service account key, relative to `backend/` | — |
+| `FIRESTORE_DATABASE_ID` | Named Firestore database, if not `(default)` | `(default)` |
 
 > SpeakWell shows replies as text. Spoken replies and scored session analysis are not enabled yet.
 

@@ -9,6 +9,8 @@ test('local server serves the app and persists a conversation', async () => {
   const dataFile = path.join(tempDir, 'sessions.json');
   process.env.SPEAKWELL_DATA_FILE = dataFile;
   process.env.OPENAI_API_KEY = 'test-key';
+  // Keep tests on the local JSON store even when backend/.env points at Firestore.
+  process.env.FIRESTORE_PROJECT_ID = '';
   const { server } = await import('./server.mjs');
   const realFetch = globalThis.fetch;
   const completionPrompts = [];

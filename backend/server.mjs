@@ -1,8 +1,9 @@
 import http from 'node:http';
-import { readFile, mkdir, writeFile, rename, stat } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { practiceInsights } from './practice.mjs';
+import { openStorage } from './storage.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
@@ -34,28 +35,12 @@ const personaInstructions = {
   challenger: 'Be a thoughtful discussion partner. Ask respectful follow-up questions that invite reasons, examples, and alternative viewpoints. Keep disagreement friendly and accessible.',
 };
 const validPersona = value => Object.hasOwn(personaInstructions, value) ? value : 'balanced';
-let store;
-try {
-  store = JSON.parse(await readFile(dataFile, 'utf8'));
-  if (!Array.isArray(store.sessions)) throw new Error('Invalid session store');
-  if (!Array.isArray(store.practiceAttempts)) store.practiceAttempts = [];
-  if (!Array.isArray(store.speeches)) store.speeches = [];
-  if (!Array.isArray(store.journalEntries)) store.journalEntries = [];
-} catch (error) {
-  if (error.code !== 'ENOENT') throw error;
-  store = { nextId: 1, sessions: [], practiceAttempts: [], speeches: [], journalEntries: [] };
-}
-
-let saveChain = Promise.resolve();
-function save() {
-  const snapshot = JSON.stringify(store, null, 2);
-  saveChain = saveChain.then(async () => {
-    await mkdir(path.dirname(dataFile), { recursive: true });
-    const temp = `${dataFile}.tmp`;
-    await writeFile(temp, snapshot);
-    await rename(temp, dataFile);
-  });
-  return saveChain;
+// Data lives in Firestore when FIRESTORE_PROJECT_ID is set, otherwise in the local JSON file.
+const storage = await openStorage({ dataFile, baseDir: here });
+const { store, save } = storage;
+if (storage.kind === 'firestore') {
+  console.log(`Using Firestore project "${storage.projectId}" for app data.`);
+  if (storage.migrated) console.log(`Copied existing local data to Firestore: ${JSON.stringify(storage.migrated)}`);
 }
 
 function json(res, status, value) {
@@ -218,7 +203,7 @@ function journalDetail(entry) {
 
 async function api(req, res, pathname, searchParams) {
   if (pathname === '/api/health' && req.method === 'GET') {
-    return json(res, 200, { status: 'ok', ready: Boolean(apiKey), missing_keys: apiKey ? [] : ['OPENAI_API_KEY'] });
+    return json(res, 200, { status: 'ok', ready: Boolean(apiKey), missing_keys: apiKey ? [] : ['OPENAI_API_KEY'], storage: storage.kind });
   }
   if (pathname === '/api/journal' && req.method === 'GET') {
     return json(res, 200, store.journalEntries.slice().reverse().map(({ id, title, mood, mode, created_at, responses, grammar }) => ({ id, title, mood, mode, created_at, responseCount: responses.length, grammarChecked: Boolean(grammar) })));
