@@ -1,11 +1,9 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-// All app data lives in Firestore. The server keeps it in memory as one object and calls save()
+// All app data except journal recordings lives in Firestore (recordings stay on local disk). The server keeps it in memory as one object and calls save()
 // after each change; only the documents that changed are written back.
 export const COLLECTIONS = ['sessions', 'practiceAttempts', 'speeches', 'journalEntries'];
-const AUDIO_COLLECTION = 'journalAudio';
-const AUDIO_CHUNK_BYTES = 900_000; // Firestore documents are limited to 1 MiB.
 const emptyStore = () => ({ nextId: 1, sessions: [], practiceAttempts: [], speeches: [], journalEntries: [] });
 
 // Tests pass an in-memory database here instead of connecting to a real project.
@@ -86,26 +84,7 @@ export async function createFirestoreStorage(db) {
     }
   });
 
-  // Journal recordings are split into chunks so each stays under the document size limit.
-  const saveAudio = async (name, buffer, type) => {
-    const chunks = Math.max(1, Math.ceil(buffer.length / AUDIO_CHUNK_BYTES));
-    const batch = db.batch();
-    batch.set(db.collection(AUDIO_COLLECTION).doc(name), { type, size: buffer.length, chunks, created_at: new Date().toISOString() });
-    for (let index = 0; index < chunks; index++) {
-      batch.set(db.collection(AUDIO_COLLECTION).doc(`${name}#${index}`), { data: buffer.subarray(index * AUDIO_CHUNK_BYTES, (index + 1) * AUDIO_CHUNK_BYTES) });
-    }
-    await batch.commit();
-  };
-  const readAudio = async name => {
-    const head = await db.collection(AUDIO_COLLECTION).doc(name).get();
-    if (!head.exists) return null;
-    const { type, chunks } = head.data();
-    const parts = await Promise.all(Array.from({ length: chunks }, (_, index) => db.collection(AUDIO_COLLECTION).doc(`${name}#${index}`).get()));
-    if (parts.some(part => !part.exists)) return null;
-    return { type, buffer: Buffer.concat(parts.map(part => Buffer.from(part.data().data))) };
-  };
-
-  return { kind: 'firestore', store, save, saveAudio, readAudio };
+  return { kind: 'firestore', store, save };
 }
 
 export async function openStorage({ baseDir }) {

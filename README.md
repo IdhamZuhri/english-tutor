@@ -72,7 +72,7 @@ On narrow screens the layout switches to a compact menu. Mobile browsers allow t
 
 ## Data & privacy
 
-All data is stored in Firestore; nothing is saved on this machine.
+Text data is stored in Firestore. Journal recordings stay on this machine in `backend/data/journal-audio/` (excluded from Git; **back it up** to keep your recordings).
 
 | What | Firestore collection |
 |---|---|
@@ -80,7 +80,6 @@ All data is stored in Firestore; nothing is saved on this machine.
 | Speech rehearsals | `speeches` |
 | Practice answers | `practiceAttempts` |
 | Journal entries | `journalEntries` |
-| Journal recordings (split into chunks under 1 MB) | `journalAudio` |
 | Next record id | `meta/app` |
 
 #### Firestore setup (required)

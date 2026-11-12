@@ -2,12 +2,18 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { useDatabaseForTests } from './storage.mjs';
 import { fakeFirestore } from './fakeFirestore.mjs';
+import { mkdtemp, readdir, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 
 test('local server serves the app and persists a conversation', async () => {
   process.env.OPENAI_API_KEY = 'test-key';
   // Never touch the real Firestore project from tests.
   const db = fakeFirestore();
   useDatabaseForTests(db);
+  // Keep test recordings out of the real backend/data folder.
+  const audioDir = await mkdtemp(path.join(tmpdir(), 'speakwell-audio-'));
+  process.env.SPEAKWELL_AUDIO_DIR = audioDir;
   const stored = name => [...db.data.entries()].filter(([key]) => key.startsWith(`${name}/`) && !key.includes('#')).map(([, value]) => value);
   const { server } = await import('./server.mjs');
   const realFetch = globalThis.fetch;
@@ -179,9 +185,11 @@ test('local server serves the app and persists a conversation', async () => {
     const journals = stored('journalEntries').sort((a, b) => a.id - b.id);
     assert.equal(journals.length, 3);
     assert.equal(journals[0].grammar.suggestions.length, 1);
-    assert.equal(stored('journalAudio').length, 2, 'both recorded journal answers are stored in Firestore');
+    assert.equal(stored('journalAudio').length, 0, 'recordings are never uploaded to Firestore');
+    assert.deepEqual((await readdir(audioDir)).sort(), [`${journal.id}-0.webm`, `${mixed.id}-1.webm`].sort(), 'recordings are saved on local disk');
   } finally {
     globalThis.fetch = realFetch;
     await new Promise(resolve => server.close(resolve));
+    await rm(audioDir, { recursive: true, force: true });
   }
 });

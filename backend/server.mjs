@@ -1,5 +1,5 @@
 import http from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, mkdir, writeFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { practiceInsights } from './practice.mjs';
@@ -9,6 +9,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, '..');
 const dist = path.join(root, 'frontend', 'dist');
 const port = Number(process.env.PORT || 8000);
+// Journal recordings are kept only on this machine, never uploaded to Firestore.
+const journalAudioDir = process.env.SPEAKWELL_AUDIO_DIR || path.join(here, 'data', 'journal-audio');
 
 async function loadEnv() {
   try {
@@ -33,7 +35,7 @@ const personaInstructions = {
   challenger: 'Be a thoughtful discussion partner. Ask respectful follow-up questions that invite reasons, examples, and alternative viewpoints. Keep disagreement friendly and accessible.',
 };
 const validPersona = value => Object.hasOwn(personaInstructions, value) ? value : 'balanced';
-// All app data, including journal recordings, is stored in Firestore; nothing is kept on this machine.
+// App data is stored in Firestore; journal recordings stay in journalAudioDir on this machine.
 const storage = await openStorage({ baseDir: here });
 const { store, save } = storage;
 console.log(`Using Firestore project "${storage.projectId}" for app data.`);
@@ -239,13 +241,14 @@ async function api(req, res, pathname, searchParams) {
       normalized.push({ prompt: response.prompt.trim(), transcript: response.transcript.trim(), audio, type });
     }
     const id = store.nextId;
+    if (normalized.some(item => item.audio)) await mkdir(journalAudioDir, { recursive: true });
     const savedResponses = [];
     for (let index = 0; index < normalized.length; index++) {
       const item = normalized[index];
       let audioFile = null;
       if (item.audio) {
         audioFile = `${id}-${index}.${audioTypes[item.type]}`;
-        await storage.saveAudio(audioFile, Buffer.from(await item.audio.arrayBuffer()), item.type);
+        await writeFile(path.join(journalAudioDir, audioFile), Buffer.from(await item.audio.arrayBuffer()));
       }
       savedResponses.push({ prompt: item.prompt, transcript: item.transcript, audioFile, audioType: item.audio ? item.type : null });
     }
@@ -264,10 +267,10 @@ async function api(req, res, pathname, searchParams) {
     const entry = store.journalEntries.find(item => item.id === Number(journalAudioMatch[1]));
     const response = entry?.responses[Number(journalAudioMatch[2])];
     if (!response || !/^\d+-\d+\.(webm|ogg|m4a|wav|mp3)$/.test(response.audioFile)) return json(res, 404, { detail: 'Recording not found' });
-    const recording = await storage.readAudio(response.audioFile);
-    if (!recording) return json(res, 404, { detail: 'Recording not found' });
-    const audio = recording.buffer;
-    res.writeHead(200, { 'content-type': response.audioType || recording.type, 'content-length': audio.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
+    let audio;
+    try { audio = await readFile(path.join(journalAudioDir, response.audioFile)); }
+    catch (error) { if (error.code === 'ENOENT') return json(res, 404, { detail: 'Recording not found on this machine' }); throw error; }
+    res.writeHead(200, { 'content-type': response.audioType || 'application/octet-stream', 'content-length': audio.length, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' });
     return res.end(audio);
   }
   const journalGrammarMatch = pathname.match(/^\/api\/journal\/(\d+)\/grammar$/);

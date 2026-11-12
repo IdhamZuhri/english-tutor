@@ -26,16 +26,3 @@ test('firestore storage loads, writes only changed documents, and keeps ids in o
   assert.equal(db.data.get('speeches/2').title, 'Two (edited)');
   assert.equal(db.data.get('meta/app').nextId, 13);
 });
-
-test('firestore storage saves and restores large recordings in chunks', async () => {
-  const db = fakeFirestore();
-  const storage = await createFirestoreStorage(db);
-  const audio = Buffer.alloc(2_000_000, 7);
-  audio[1_999_999] = 9;
-  await storage.saveAudio('5-0.webm', audio, 'audio/webm');
-  assert.equal(db.data.get('journalAudio/5-0.webm').chunks, 3);
-  const restored = await storage.readAudio('5-0.webm');
-  assert.equal(restored.type, 'audio/webm');
-  assert.ok(restored.buffer.equals(audio));
-  assert.equal(await storage.readAudio('missing.webm'), null);
-});
