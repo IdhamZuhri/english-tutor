@@ -99,6 +99,21 @@ function safeMessages(messages) {
     .slice(-30).map(m => ({ role: m.role, content: m.content.slice(0, 4000) }));
 }
 
+const pick = list => list[Math.floor(Math.random() * list.length)];
+const topicAngles = {
+  'everyday life': ['morning routines', 'household chores', 'sleep habits', 'commuting', 'weekends', 'shopping habits', 'neighbours', 'hobbies', 'pets', 'phones in daily life', 'small daily joys', 'saving money', 'weather and mood', 'friendship', 'family traditions', 'clothes and style'],
+  'travel and places': ['hometowns', 'dream destinations', 'solo vs group travel', 'tourism impact', 'public transport', 'packing and planning', 'local hidden spots', 'living abroad', 'road trips', 'museums and landmarks', 'nature trips', 'city vs countryside', 'souvenirs', 'travel mistakes', 'airports and journeys', 'learning about a place before visiting'],
+  'technology': ['social media', 'artificial intelligence', 'online privacy', 'video games', 'smart homes', 'screen time', 'online shopping', 'remote communication', 'apps that changed habits', 'robots and jobs', 'technology in schools', 'digital detox', 'future gadgets', 'streaming and entertainment', 'cyber safety', 'old vs new technology'],
+  'community': ['volunteering', 'local events', 'neighbourhood improvement', 'public spaces and parks', 'helping strangers', 'local businesses', 'community sports', 'elderly people in society', 'libraries', 'clubs and groups', 'environmental action', 'festivals', 'online communities', 'kindness', 'rules and responsibilities', 'welcoming newcomers'],
+  'learning': ['learning languages', 'favourite teachers', 'online courses', 'learning from failure', 'exams and tests', 'self-study habits', 'reading', 'learning a skill as an adult', 'curiosity', 'memorisation vs understanding', 'group study', 'mentors', 'learning from travel', 'school subjects', 'motivation', 'lifelong learning'],
+  'food and culture': ['street food', 'family recipes', 'eating out vs cooking', 'food festivals', 'healthy eating', 'regional dishes', 'table manners', 'trying unusual food', 'coffee and tea culture', 'music', 'films and series', 'holidays and celebrations', 'traditional clothing', 'fast food', 'food waste', 'sharing meals'],
+  'work and goals': ['dream jobs', 'work-life balance', 'remote work', 'teamwork', 'leadership', 'starting a business', 'career changes', 'productivity habits', 'setting goals', 'first jobs', 'workplace skills', 'success and failure', 'money and happiness', 'side projects', 'retirement', 'time management'],
+  'imagination': ['superpowers', 'time travel', 'life on other planets', 'a world without phones', 'living in the future', 'talking animals', 'inventing something', 'a day as someone else', 'magic objects', 'a perfect city', 'being invisible', 'meeting a historical figure', 'life underwater', 'a new holiday', 'switching lives', 'a world with no money'],
+};
+const topicStyles = ['a would-you-rather choice', 'a "what if" scenario', 'an agree-or-disagree opinion', 'a "describe a time when" story prompt', 'a pros-and-cons question', 'a "how would you" problem-solving question', 'a comparison of two things', 'a prediction about the future', 'a "why do people" question', 'an advice-giving question'];
+const recentTopicAngles = new Map();
+const recentTopicsByTheme = new Map();
+
 const journalModes = ['guided', 'conversation', 'free'];
 const journalMoods = ['great', 'good', 'okay', 'low', 'anxious'];
 const audioTypes = { 'audio/webm': 'webm', 'audio/ogg': 'ogg', 'audio/mp4': 'm4a', 'audio/wav': 'wav', 'audio/mpeg': 'mp3' };
@@ -296,15 +311,23 @@ async function api(req, res, pathname, searchParams) {
     let body;
     try { body = JSON.parse((await bodyBytes(req, 5000)).toString('utf8')); }
     catch { return json(res, 400, { detail: 'Invalid topic request' }); }
-    const recentTopics = Array.isArray(body?.recentTopics) ? body.recentTopics.filter(value => typeof value === 'string').slice(-12).map(value => value.slice(0, 120)) : [];
-    const themes = ['everyday life', 'travel and places', 'technology', 'community', 'learning', 'food and culture', 'work and goals', 'imagination'];
-    const theme = themes.includes(body?.theme) ? body.theme : themes[Math.floor(Math.random() * themes.length)];
+    const clientRecent = Array.isArray(body?.recentTopics) ? body.recentTopics.filter(value => typeof value === 'string').slice(-30).map(value => value.slice(0, 120)) : [];
+    const themes = Object.keys(topicAngles);
+    const theme = themes.includes(body?.theme) ? body.theme : pick(themes);
+    // Steer each request toward a different sub-angle and question style so one theme doesn't keep producing the same idea.
+    const recentAngles = recentTopicAngles.get(theme) || [];
+    const freshAngles = topicAngles[theme].filter(angle => !recentAngles.includes(angle));
+    const angle = pick(freshAngles.length ? freshAngles : topicAngles[theme]);
+    recentTopicAngles.set(theme, [...recentAngles, angle].slice(-Math.floor(topicAngles[theme].length / 2)));
+    const style = pick(topicStyles);
+    const avoid = [...new Set([...(recentTopicsByTheme.get(theme) || []), ...clientRecent])].slice(-30);
     const raw = await complete([
-      { role: 'system', content: 'Create one fresh, accessible English speaking topic for a learner to talk about freely for 1 to 5 minutes. Make it specific enough to invite an opinion, reasons, and examples, but open enough for different answers. Return JSON with a single topic string (a short question, at most 120 characters). No instructions, answers, or sensitive personal questions.' },
-      { role: 'user', content: JSON.stringify({ theme, avoid: recentTopics }) },
+      { role: 'system', content: 'Create one fresh, accessible English speaking topic for a learner to talk about freely for 1 to 5 minutes. Make it specific enough to invite an opinion, reasons, and examples, but open enough for different answers. Build the topic around the given angle and question style. It must be clearly different in subject and wording from every topic in the avoid list, not a rephrasing of one. Return JSON with a single topic string (a short question, at most 120 characters). No instructions, answers, or sensitive personal questions.' },
+      { role: 'user', content: JSON.stringify({ theme, angle, questionStyle: style, avoid }) },
     ], true);
     const topic = String(raw.topic || '').trim().slice(0, 120);
     if (!topic) return json(res, 502, { detail: 'Could not generate a topic. Please try again.' });
+    recentTopicsByTheme.set(theme, [...(recentTopicsByTheme.get(theme) || []), topic].slice(-20));
     return json(res, 200, { topic });
   }
   if (pathname === '/api/speeches' && req.method === 'POST') {

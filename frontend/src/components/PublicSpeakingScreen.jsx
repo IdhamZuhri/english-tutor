@@ -7,6 +7,13 @@ import { fetchSpeech, fetchSpeeches, fetchSurpriseTopic, submitSpeech } from '..
 import { ReviewProgress, SpeechReport, initialReviewSteps } from './SpeechReview.jsx';
 import './PublicSpeakingScreen.css';
 
+import StructureGuide from './StructureGuide.jsx';
+import { getFramework } from '../speechFrameworks.js';
+
+const SEEN_TOPICS_KEY = 'speech.seenTopics';
+const FRAMEWORK_KEY = 'speech.framework';
+const GUIDE_LEVEL_KEY = 'speech.guideLevel';
+
 const challenges = [
   { title: 'Introduce an idea that matters to you', format: 'Presentation', hint: 'Explain the idea, why it matters, and one takeaway.', icon: 'spark' },
   { title: 'Tell a story about a turning point', format: 'Storytelling', hint: 'Set the scene, describe what changed, and share what you learned.', icon: 'book' },
@@ -17,13 +24,8 @@ const formatTips = {
   Storytelling: ['Set the scene: who, where, and when?', 'Describe the moment something changed.', 'Share what the story means to you now.'],
   'Persuasive pitch': ['Start with a problem your audience recognizes.', 'Offer your idea and one reason to believe it.', 'Finish with a specific action people can take.'],
 };
-// PREP: a simple, well-known structure for answering an unprepared question.
-const prepCues = [
-  { label: 'Point', hint: 'Give your answer in one sentence.' },
-  { label: 'Reason', hint: 'Explain why you think so.' },
-  { label: 'Example', hint: 'Share a story, fact or experience.' },
-  { label: 'Point', hint: 'Restate your answer to finish.' },
-];
+const readPref = (key, fallback) => { try { return localStorage.getItem(key) || fallback; } catch { return fallback; } };
+const writePref = (key, value) => { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } };
 const formatTime = seconds => `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${(seconds % 60).toString().padStart(2, '0')}`;
 
 export default function PublicSpeakingScreen({ initialSpeechId = null, initialMode = 'prepared', onBackToHistory = null }) {
@@ -32,7 +34,15 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
   const [mode, setMode] = useState(initialMode);
   const [spinning, setSpinning] = useState(false);
   const [wheelIndex, setWheelIndex] = useState(null);
-  const [seenTopics, setSeenTopics] = useState([]);
+  const [seenTopics, setSeenTopics] = useState(() => {
+    try { const saved = JSON.parse(localStorage.getItem(SEEN_TOPICS_KEY) || '[]'); return Array.isArray(saved) ? saved.filter(t => typeof t === 'string').slice(-30) : []; }
+    catch { return []; }
+  });
+  const [frameworkId, setFrameworkId] = useState(() => getFramework(readPref(FRAMEWORK_KEY, 'prep')).id);
+  const [guideLevel, setGuideLevel] = useState(() => readPref(GUIDE_LEVEL_KEY, 'light') === 'detailed' ? 'detailed' : 'light');
+  const framework = getFramework(frameworkId);
+  const chooseFramework = id => { setFrameworkId(id); writePref(FRAMEWORK_KEY, id); };
+  const chooseGuideLevel = id => { setGuideLevel(id); writePref(GUIDE_LEVEL_KEY, id); };
   const [title, setTitle] = useState('');
   const [outline, setOutline] = useState(['', '', '']);
   const [target, setTarget] = useState(2);
@@ -94,7 +104,11 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
       if (request !== topicRequestRef.current) return;
       setTitle(topic);
       setWheelIndex(index);
-      setSeenTopics(current => [...current.slice(-11), topic]);
+      setSeenTopics(current => {
+        const next = [...current.slice(-29), topic];
+        try { localStorage.setItem(SEEN_TOPICS_KEY, JSON.stringify(next)); } catch { /* storage unavailable */ }
+        return next;
+      });
       // On narrow screens the topic sits below the wheel; bring it into view once revealed.
       requestAnimationFrame(() => topicCardRef.current?.scrollIntoView?.({ block: 'nearest', behavior: 'smooth' }));
     } catch (err) { if (request === topicRequestRef.current) setError(err.message); }
@@ -204,10 +218,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
                 : <><small>YOUR TOPIC</small><strong>Press SPIN or flick the wheel to get a topic.</strong></>}
             </div>
             {title && !spinning && <p className="speech-respin">Not feeling it? Press <strong>AGAIN</strong> on the wheel for a new theme.</p>}
-            {title && !spinning && <div className="speech-prep">
-              <small>QUICK STRUCTURE · P-R-E-P</small>
-              <ol>{prepCues.map((cue, index) => <li key={index}><strong>{cue.label}</strong><span>{cue.hint}</span></li>)}</ol>
-            </div>}
+            {title && !spinning && <StructureGuide topic={title} frameworkId={frameworkId} guideLevel={guideLevel} onFrameworkChange={chooseFramework} onGuideLevelChange={chooseGuideLevel} />}
             <div className="speech-surprise-launch">
               <div className="speech-format-row" role="group" aria-label="Speaking time">{[1, 2, 3, 5].map(minutes => <button type="button" key={minutes} className={`speech-chip ${target === minutes ? 'selected' : ''}`} aria-pressed={target === minutes} aria-label={`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`} onClick={() => setTarget(minutes)}>{minutes} min</button>)}</div>
               <button type="button" className="btn btn-primary btn-lg" disabled={!title.trim() || spinning} onClick={begin}><Icon name="mic" size={18} /> Start speaking</button>
@@ -236,7 +247,7 @@ export default function PublicSpeakingScreen({ initialSpeechId = null, initialMo
       {recent.length > 0 && <section className="speech-recent"><div className="speech-section-title"><span>YOUR MOMENTUM</span><h2>Past rehearsals</h2></div><div className="speech-recent-list">{recent.slice(0, 4).map(item => <button type="button" className="speech-recent-row glass-card" key={item.id} onClick={() => openRecent(item.id)} disabled={busy}><span className="speech-recent-icon"><Icon name="podium" size={20} /></span><span><strong>{item.title}</strong><small>{item.format} · {new Date(item.created_at).toLocaleDateString()}</small></span><span aria-hidden="true">→</span></button>)}</div></section>}
     </>}
 
-    {step === 'rehearse' && <section className="speech-stage glass-card"><span className="speech-live"><span /> RECORDING</span><h2>{title}</h2><p>{mode === 'impromptu' ? `Surprise topic · ${target} ${target === 1 ? 'minute' : 'minutes'} to speak` : `${format} · Aim for ${target} ${target === 1 ? 'minute' : 'minutes'}`}</p><div className="speech-timer" aria-live="off">{formatTime(mode === 'impromptu' ? Math.max(0, target * 60 - elapsed) : elapsed)}</div><div className="speech-timebar"><span style={{ width: `${Math.min(100, elapsed / (target * 60) * 100)}%` }} /></div><p className="speech-timehint">{mode === 'impromptu' ? 'Keep going with a reason, example, or another angle. Recording stops when time is up.' : elapsed >= target * 60 ? 'You reached your goal. Finish whenever you are ready.' : 'Take your time. Pause between ideas.'}</p>{mode === 'impromptu' && <><button type="button" className="speech-cue-toggle" onClick={() => setShowCues(value => !value)} aria-expanded={showCues}>{showCues ? 'Hide' : 'Show'} structure guide</button>{showCues && <div className="speech-cues speech-cues--prep">{prepCues.map((cue, index) => <div key={index}><small>{index + 1} · {cue.label}</small><strong>{cue.hint}</strong></div>)}</div>}</>}{mode === 'prepared' && <><button type="button" className="speech-cue-toggle" onClick={() => setShowCues(value => !value)} aria-expanded={showCues}>{showCues ? 'Hide' : 'Show'} cue cards</button>{showCues && <div className="speech-cues">{['Opening', 'Main point', 'Closing'].map((label, index) => <div key={label}><small>{label}</small><strong>{outline[index] || formatTips[format][index]}</strong></div>)}</div>}</>}<button type="button" className="btn btn-primary btn-lg" onClick={finish}><Icon name="check" size={18} /> {mode === 'impromptu' ? 'Finish early' : 'Finish rehearsal'}</button></section>}
+    {step === 'rehearse' && <section className="speech-stage glass-card"><span className="speech-live"><span /> RECORDING</span><h2>{title}</h2><p>{mode === 'impromptu' ? `Surprise topic · ${target} ${target === 1 ? 'minute' : 'minutes'} to speak` : `${format} · Aim for ${target} ${target === 1 ? 'minute' : 'minutes'}`}</p><div className="speech-timer" aria-live="off">{formatTime(mode === 'impromptu' ? Math.max(0, target * 60 - elapsed) : elapsed)}</div><div className="speech-timebar"><span style={{ width: `${Math.min(100, elapsed / (target * 60) * 100)}%` }} /></div><p className="speech-timehint">{mode === 'impromptu' ? 'Keep going with a reason, example, or another angle. Recording stops when time is up.' : elapsed >= target * 60 ? 'You reached your goal. Finish whenever you are ready.' : 'Take your time. Pause between ideas.'}</p>{mode === 'impromptu' && <><button type="button" className="speech-cue-toggle" onClick={() => setShowCues(value => !value)} aria-expanded={showCues}>{showCues ? 'Hide' : 'Show'} structure guide</button>{showCues && <div className="speech-cues speech-cues--prep" style={{ '--cue-count': framework.steps.length }}>{framework.steps.map((cue, index) => <div key={index}><small>{index + 1} · {cue.label}</small><strong>{guideLevel === 'detailed' ? cue.starters[0] : cue.hint}</strong></div>)}</div>}</>}{mode === 'prepared' && <><button type="button" className="speech-cue-toggle" onClick={() => setShowCues(value => !value)} aria-expanded={showCues}>{showCues ? 'Hide' : 'Show'} cue cards</button>{showCues && <div className="speech-cues">{['Opening', 'Main point', 'Closing'].map((label, index) => <div key={label}><small>{label}</small><strong>{outline[index] || formatTips[format][index]}</strong></div>)}</div>}</>}<button type="button" className="btn btn-primary btn-lg" onClick={finish}><Icon name="check" size={18} /> {mode === 'impromptu' ? 'Finish early' : 'Finish rehearsal'}</button></section>}
 
     {step === 'review' && reviewing && <ReviewProgress steps={reviewSteps} transcript={reviewTranscript} startedAt={reviewStartedAt} />}
 
